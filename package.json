@@ -1,0 +1,21 @@
+{
+    "name": "M2MBridge",
+    "description": "",
+    "version": "0.0.1",
+    "main": "./M2MBridge.js",
+    "author": {
+        "name": "Carlos",
+        "email": "carlos@amtech.mx"
+    },
+    "keywords": [],
+    "licenses": {
+        "type": "none"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/YOUR_LOGIN/M2MBridge.git"
+    },
+    "bugs": {
+        "url": "http://github.com/YOUR_LOGIN/M2MBridge/issues"
+    }
+}
