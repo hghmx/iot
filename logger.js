@@ -1,18 +1,21 @@
 "use strict";
 var cnfg = require('./config').config.bc;
 var winston = require('winston');
-var singleton = null;
-function Logger (){
-    this.logger = new (winston.Logger)({
+if(!logger){
+    var logger = new (winston.Logger)({
         transports: [
             new (winston.transports.Console)({
                 colorize: cnfg.logger.colorize,
                 level :  cnfg.logger.level
             })
         ]
-    });   
+    }); 
+
+    logger.on('error', 
+    function (err) { 
+        console.error(err);
+    });
 }
-singleton = singleton || new Logger();
 module.exports = {
-    logger : singleton.logger
+    logger : logger
 };

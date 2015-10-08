@@ -74,19 +74,17 @@ Bridge.prototype.initDispatcher = function (complete) {
 };
 
 Bridge.prototype.getConfiguration = function (complete) {
-    
     try{
         var config = require('./config').config; 
-        var configObject = require('./config').configObject; 
         var _self = this;
     } catch(e){
         complete(e);
-    }
-    async.series([configObject.prototype.init.bind(config)], function (err, results) {
+    }    
+    config.init(function (err, result) {
         if (err) {
             complete(err);
         } else {
-            _self.bc = results[0];
+            _self.bc = result;
             logger = require('./logger').logger;
             var dapClient = require('./dapClient');
             _self.dapClient = new dapClient.DapClient(_self.bc.dap.dapUrl, _self.bc.dap.userId, _self.bc.dap.tenant, _self.bc.dap.password);
@@ -108,7 +106,7 @@ Bridge.prototype.run = function () {
 };
 
 Bridge.prototype.stop = function () {
-    async.series([this.plugs.stopPlugIns.bind(this.plugs)], function (err) {
+   this.plugs.stopPlugIns(function (err) {
             if(err) throw err;
         });
 };

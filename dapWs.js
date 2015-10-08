@@ -1,7 +1,6 @@
 "use strict";
 var ws = require('ws');
 var singleton = null;
-var async = require('async');
 function DapWs( bc, onMessage, url, complete  ){     
     this.bc = bc;
     this.url = url;
@@ -21,7 +20,7 @@ DapWs.prototype.connect = function (complete) {
         self.ws.on('close', DapWs.prototype.error.bind(this));
         complete(null);
     });
-    this.ws.on('error', function( err ) {
+    this.ws.once('error', function( err ) {
         complete(err);
     });
 };

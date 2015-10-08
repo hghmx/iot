@@ -9,11 +9,11 @@ SNMPDevice.prototype.stop = function (complete) {
     complete(null);
 };
 
-SNMPDevice.prototype.update = function (complete) {
+SNMPDevice.prototype.update = function ( update, complete) {
     complete(null);
 };
 
-SNMPDevice.prototype.command = function (complete) {
+SNMPDevice.prototype.command = function ( cmnd, complete) {
     complete(null);
 };
 

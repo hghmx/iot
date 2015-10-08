@@ -6,6 +6,8 @@ var pluginsDir = './plugins';
 var hashMap = require('hashmap');
 var plugininterface = ['start', 'stop', 'update', 'command'];
 var observations = require('./observations');
+var logger = require('./logger').logger;
+var util = require('util');
 
 function Plugins( bc ){     
     this.bc = bc;
@@ -13,11 +15,12 @@ function Plugins( bc ){
 }
 
 Plugins.prototype.load = function (complete) {
+    var self = this;
     //Nothing to do...
     if (!fs.existsSync(pluginsDir) || extfs.isEmptySync(pluginsDir)){
         complete(new Error("No plugins to load"));
     }
-    
+    self.loadedPlugs = [];
     var cnfg = [{name:"SNMPDevice", 
                 typeCnfg: {'@id':"type1"}, 
                 instancesCnfg:[{'@id':"instance1"},{'@id':"instance2"},{'@id':"instance3"}]}];
@@ -26,7 +29,8 @@ Plugins.prototype.load = function (complete) {
             if (err) {
                 complete(err);
             } else {
-                complete(null, "Loaded: " + cnfg.length + " plugins");
+                self.loadedPlugs.push(util.format( "Loaded: %d plugins",  self.getInstances().length));
+                complete(null, self.loadedPlugs);
             }
     });
 };
@@ -56,14 +60,19 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
 
 Plugins.prototype.newInstance = function (newPlugin, pluginName, typeC, instanceC, complete) {
     var self = this;
-    async.series([async.apply( newPlugin.start.bind(newPlugin), typeC, instanceC)], function (err, results) {
-        if (err) {
-            complete(err);
-        } else {
-            self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
-            complete(null, "Retrieved observation configuration");
-        }
-    });
+    try{
+        newPlugin.start( typeC, instanceC, function (err) {
+            if (err) {
+                complete(err);
+            } else {
+                self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
+                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  instanceC['@id']));
+                complete(null);
+            }
+        });
+    }catch(e){
+        complete(e);
+    }
 };
 
 Plugins.prototype.validateInterface = function (name, plugin) {
@@ -90,10 +99,8 @@ Plugins.prototype.delete = function (complete) {
 Plugins.prototype.update = function (complete) {
 };
 
-
-
 Plugins.prototype.stop = function (plugIn, complete) {
-    async.series([plugIn.stop.bind(plugIn)], function (err) {
+    plugIn.stop( function (err) {
         complete(err);
     });
 };
@@ -108,7 +115,7 @@ Plugins.prototype.stopPlugIns = function (complete) {
 
 Plugins.prototype.getInstances = function (complete) {
     var instances = [];
-    this.plugins.forEach(function(value, plugName){
+    this.plugins.forEach(function(value){
         instances = instances.concat(value.instances.values());
         
     });

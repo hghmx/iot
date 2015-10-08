@@ -15,7 +15,7 @@ function Observations( bc, dapClient ){
 
 Observations.prototype.getConfiguration = function (complete) {
     var _self = this;
-    async.series([dapClient.prototype.getConfiguration.bind(this.dapClient)], function (err, results) {
+    this.dapClient.getConfiguration(function (err, results) {
         if (err) {
             complete(err);
         } else {
@@ -45,10 +45,12 @@ Observations.prototype.sendJob = function (params, callback) {
                 async.apply( dapClient.prototype.sendObservation.bind(this.dapClient), params), 
                 function(err) {
                     if(err){
+                        logger.error(err);
                         self.reconnectInterval = setInterval(function () {
                             self.sendJob(params, callback);}, 
                                 self.bc.networkFailed.reconnectWait);                                
                     }else{
+                        logger.debug( 'sent observation: ' + params['@type']);
                         callback();
                     }
                 });                
@@ -67,7 +69,7 @@ Observations.prototype.send = function (observation) {
         if (err){
             logger.error(err);
         }else{
-            logger.debug('enqueued:', job.data);
+            logger.debug( 'enqueued observation: ' + job.data.params['@type']);
         }
     });
 };
