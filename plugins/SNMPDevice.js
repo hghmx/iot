@@ -1,20 +1,36 @@
-function SNMPDevice(){     
+function SNMPDevice(){
 }
 
-SNMPDevice.prototype.start = function (thingTypeCnfg, thingInfo, complete) {
-    complete(null);
+SNMPDevice.prototype.start = function ( thingTypeCnfg, thingInfo, complete) {
+    try{
+        complete(null);
+    }catch(e){
+        complete(e);
+    }
 };
 
 SNMPDevice.prototype.stop = function (complete) {
-    complete(null);
+    try{
+        complete(null);
+    }catch(e){
+        complete(e);
+    }
 };
 
-SNMPDevice.prototype.update = function ( update, complete) {
-    complete(null);
+SNMPDevice.prototype.update = function ( observation, complete) {
+    try{
+        complete(null);
+    }catch(e){
+        complete(e);
+    }
 };
 
-SNMPDevice.prototype.command = function ( cmnd, complete) {
-    complete(null);
+SNMPDevice.prototype.command = function ( observation, complete) {
+    try{
+        complete(null);
+    }catch(e){
+        complete(e);
+    }
 };
 
 module.exports.SNMPDevice = SNMPDevice;

@@ -4,6 +4,8 @@
  * and open the template in the editor.
  */
 
+var spinner = require('simple-spinner');
+spinner.start();
 var async = require('async');
 var bridge =require('./bridge');
 var extend = require('util')._extend;
@@ -35,11 +37,13 @@ function done(err, results) {
         logger.info(util.inspect(cnfgShow)); 
         logger.info("Started the following services...");
         logger.info(util.inspect(results));
+        spinner.stop();
         m2mB.run();
     }
 }
 
 function exitHandler(options, err) {
+    spinner.stop();
     if (options.cleanup){
         m2mB.stop();
         logger.info('Stopped plugins...');

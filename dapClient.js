@@ -66,6 +66,30 @@ DapClient.prototype.getConfiguration = function (complete) {
             }
         });
 };
+
+DapClient.prototype.getThing = function ( url, complete) {
+    var self = this;
+    var options = self._options();
+    options.query = options.query || {};
+    options.query['selfContained'] = true;
+    rest.get(self.dapUrl + url, options).on(
+        'complete',
+        function (data, response) {
+            if (response.statusCode != 200) {
+                complete(new Error(
+                        'Not a 200 OK response while retrieving resource: '
+                        + response.statusCode));
+            } else if (data instanceof Error) {
+                complete(data);
+            } else if ('success' in data && !data['success']) {
+                complete(new Error(data['message'] + " (detail: "
+                        + data['messageDetail'] + ")"));
+            } else {
+                complete(null, data.results);
+            }
+        });
+};
+
 module.exports = {
     DapClient : DapClient
 };

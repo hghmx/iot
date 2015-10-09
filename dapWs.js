@@ -1,11 +1,10 @@
 "use strict";
 var ws = require('ws');
 var singleton = null;
-function DapWs( bc, onMessage, url, complete  ){     
-    this.bc = bc;
+function DapWs( url, onMessage, pluginName ){     
     this.url = url;
-    this.connect(complete);
     this.onMessage = onMessage;
+    this.pluginName = pluginName;
 }
 
 DapWs.prototype.connect = function (complete) {
@@ -15,9 +14,9 @@ DapWs.prototype.connect = function (complete) {
     }
     self.ws = new ws(this.url);
     self.ws.on('open', function() {
-        self.ws.on('message', DapWs.prototype.message.bind(this));       
-        self.ws.on('error', DapWs.prototype.error.bind(this));
-        self.ws.on('close', DapWs.prototype.error.bind(this));
+        self.ws.on('message', DapWs.prototype.message.bind(self));       
+        self.ws.on('error', DapWs.prototype.error.bind(self));
+        self.ws.on('close', DapWs.prototype.error.bind(self));
         complete(null);
     });
     this.ws.once('error', function( err ) {
@@ -26,7 +25,7 @@ DapWs.prototype.connect = function (complete) {
 };
 
 DapWs.prototype.message = function (data, flags) {
-    this.onMessage(data);
+    this.onMessage(this.pluginName, data);
 };
 
 DapWs.prototype.retry = function() {
@@ -50,19 +49,3 @@ DapWs.prototype.error = function (err) {
 module.exports = {
     DapWs : DapWs            
 };
-
-var replaceUrlParams = (function()
-{
-    var replacer = function(context)
-    {
-        return function(s, name)
-        {
-            return context[name];
-        };
-    };
-
-    return function(input, context)
-    {
-        return input.replace(/\#{(\b(|deviceId|tenantId|userId)\b)\}/g, replacer(context));
-    };
-})();

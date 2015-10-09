@@ -47,7 +47,7 @@ Bridge.prototype.init = function (complete) {
         if (err) {
             done(err);
         } else {
-            _self.bridgeId = JSON.parse(data.toString());
+            _self.bridgeId = JSON.parse(data.toString()).bridgeId;
             done(null);
         }
     });};
@@ -85,13 +85,14 @@ Bridge.prototype.getConfiguration = function (complete) {
             complete(err);
         } else {
             _self.bc = result;
+            _self.bc['bridgeId'] = _self.bridgeId;
             logger = require('./logger').logger;
             var dapClient = require('./dapClient');
             _self.dapClient = new dapClient.DapClient(_self.bc.dap.dapUrl, _self.bc.dap.userId, _self.bc.dap.tenant, _self.bc.dap.password);
-            var plugins = require('./plugins');
-            _self.plugs = new plugins.Plugins(_self.bc);
             var observations = require('./observations');
             _self.observs = new observations.Observations(_self.bc, _self.dapClient);
+            var plugins = require('./plugins');
+            _self.plugs = new plugins.Plugins(_self.bc, _self.dapClient, _self.observs);
             complete(null, "Configuration loaded");
         }
     });

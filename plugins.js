@@ -5,26 +5,47 @@ var extfs = require('extfs');
 var pluginsDir = './plugins';
 var hashMap = require('hashmap');
 var plugininterface = ['start', 'stop', 'update', 'command'];
-var observations = require('./observations');
+//var observations = require('./observations');
 var logger = require('./logger').logger;
 var util = require('util');
+var dapws = require('./dapWs').DapWs;
 
-function Plugins( bc ){     
+//when wildcard get implemented GET will be excluded
+///amtech/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
+var urlDapCrud = '/amtech/things/events?topic=/dap/things/%s&client=%s';
+//'/amtech/things/commands?client=<bridgeId>&thing_type=<thingType>'
+var urlDapCmds = '/amtech/things/commands?client=%s&thing_type=%s';
+
+function Plugins( bc, dapClient, observs ){     
     this.bc = bc;
-    this.plugins = new hashMap();
+    this.dapClient = dapClient;
+    this.observs = observs;
+    this.plugins = observs.typesConfiguration;
 }
 
 Plugins.prototype.load = function (complete) {
     var self = this;
+    this.plugins = new hashMap();
     //Nothing to do...
     if (!fs.existsSync(pluginsDir) || extfs.isEmptySync(pluginsDir)){
         complete(new Error("No plugins to load"));
     }
     self.loadedPlugs = [];
-    var cnfg = [{name:"SNMPDevice", 
-                typeCnfg: {'@id':"type1"}, 
-                instancesCnfg:[{'@id':"instance1"},{'@id':"instance2"},{'@id':"instance3"}]}];
-    async.each(cnfg, Plugins.prototype.pluged.bind(this), 
+    
+    var cnfg = new hashMap();
+    cnfg.set("SNMPDevice", {name: 'SNMPDevice', config: {}, instances :new hashMap()});
+    cnfg.get("SNMPDevice").instances.set("instance1", {config:{'@id':"instance1"}});
+    cnfg.get("SNMPDevice").instances.set("instance2", {config:{'@id':"instance2"}});
+    cnfg.get("SNMPDevice").instances.set("instance3", {config:{'@id':"instance3"}});
+    cnfg.get("SNMPDevice").instances.set("instance4", {config:{'@id':"instance4"}});
+    cnfg.get("SNMPDevice").instances.set("instance5", {config:{'@id':"instance5"}});
+    
+    this.plugins = cnfg;
+   
+//    var cnfg = [{name:"SNMPDevice", 
+//                typeCnfg: {'@id':"type1"}, 
+//                instancesCnfg:[{'@id':"instance1"},{'@id':"instance2"},{'@id':"instance3"}]}];
+    async.each(this.plugins.values(), Plugins.prototype.pluged.bind(this), 
         function (err) {
             if (err) {
                 complete(err);
@@ -38,14 +59,13 @@ Plugins.prototype.load = function (complete) {
 Plugins.prototype.pluged = function (pluginConfig, complete) {
     var self = this;
     try{
+        //self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:null, crud:null});   
+        self.addWebSockets(pluginConfig.name);
         var plugClass = require(pluginsDir + '/' + pluginConfig.name);
-        plugClass[ pluginConfig.name].prototype['sendObservation'] = observations.Observations.prototype.send;
-        var newPlugin = new plugClass[ pluginConfig.name]();
-        this.validateInterface(pluginConfig.name, newPlugin);
-        self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:{}, crud:{}});        
-        async.each(pluginConfig.instancesCnfg, 
+        plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
+        async.each(pluginConfig.instances.values(), 
             async.apply(Plugins.prototype.newInstance.bind(this), 
-                        newPlugin, pluginConfig.name, pluginConfig.typeCnfg),
+                        plugClass, pluginConfig.name, pluginConfig.config),
             function (err) {
                 if (err) {
                     complete(err);
@@ -58,15 +78,26 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
     }
 };
 
-Plugins.prototype.newInstance = function (newPlugin, pluginName, typeC, instanceC, complete) {
+Plugins.prototype.addWebSockets = function (pluginName) {
+    var cmdUrl = util.format(urlDapCrud, pluginName, this.bc.bridgeId);
+    this.plugins.get(pluginName)['commands'] = new dapws(cmdUrl, this.onCommand.bind(this), pluginName);
+    var crudUrl = util.format(urlDapCrud, pluginName, this.bc.bridgeId);
+    this.plugins.get(pluginName)['crud'] = new dapws(crudUrl, this.onCrud.bind(this), pluginName);
+};
+
+
+Plugins.prototype.newInstance = function (plugClass, pluginName, typeC, pluginInstance, complete ) {
     var self = this;
     try{
-        newPlugin.start( typeC, instanceC, function (err) {
+        var newPlugin = new plugClass[ pluginName]();
+        this.validateInterface(pluginName, newPlugin);        
+        newPlugin.start( typeC, pluginInstance.config, function (err) {
             if (err) {
                 complete(err);
             } else {
-                self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
-                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  instanceC['@id']));
+                pluginInstance['instance'] = newPlugin;
+                //self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
+                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  pluginInstance.config['@id']));
                 complete(null);
             }
         });
@@ -87,16 +118,58 @@ Plugins.prototype.validateInterface = function (name, plugin) {
     }            
 };
 
-Plugins.prototype.command = function (complete) {
+Plugins.prototype.onCommand = function (pluginName, observation) {
 };
 
-Plugins.prototype.new = function (complete) {
-};
-
-Plugins.prototype.delete = function (complete) {
-};
-
-Plugins.prototype.update = function (complete) {
+Plugins.prototype.onCrud = function (pluginName, observation) {
+    var self = this;
+    switch(observation.crudoperation){
+        case 'POST':
+            //"resourceuri": "/amtech/things/entities/cardemo",
+            this.dapClient.getThing(observation['resourceuri'], 
+            function (err, instance) {
+                if(err){
+                    logger.error( util.format("Error Getting a new  plugin %s id %s information error: %s",pluginName, 
+                    getResourceName(observation['resourceuri']), err.message));
+                }else{
+                    try{
+                        var pluginName = getResourceName(observation['"@type"']);
+                        var plugClass = require(pluginsDir + '/' + pluginName);
+                        var resourceUrn = getResourceName(observation['resourceuri']);
+                        self.observs.plugins.get(pluginName).instances.set(resourceUrn, {config:instance});
+                        self.newInstance(plugClass, pluginName, 
+                                            self.observs.plugins.get(pluginName).config, 
+                                            self.observs.plugins.get(pluginName).instances.get(resourceUrn) ,
+                        function(err){
+                            logger.error( util.format("Error starting a new  plugin %s id %s information error: %s",pluginName,
+                                getResourceName(observation['resourceuri']), err.message));
+                        });
+                    }catch(err){
+                        logger.error( util.format("Error Creating a new  plugin %s id %s information error: %s",pluginName,
+                                getResourceName(observation['resourceuri']), err.message));
+                    }
+                }
+            });
+            break;
+        case 'PUT':
+            var plugIn = this.plugins.get(pluginName).instances.get(observation['@id']);
+            plugIn.update(observation, 
+                function (err) {
+                if(err){
+                    logger.error( util.format("Error Updating a plugin %s id %s error: %s",pluginName, observation['@id'], err.message));
+                }
+            }); 
+            break;
+        case 'DELETE':
+            var plugIn = this.plugins.get(pluginName).instances.get(observation['@id']);
+            this.plugins.get(pluginName).instances.remove(observation['@id']);
+            plugIn.stop(function (err) {
+                if(err){
+                    logger.error( util.format("Error Deleting a plugin %s id %s error: %s",pluginName, observation['@id'], err.message));
+                }
+            }); 
+            break;
+    };    
 };
 
 Plugins.prototype.stop = function (plugIn, complete) {
@@ -113,14 +186,19 @@ Plugins.prototype.stopPlugIns = function (complete) {
             });
 };
 
-Plugins.prototype.getInstances = function (complete) {
+Plugins.prototype.getInstances = function () {
     var instances = [];
-    this.plugins.forEach(function(value){
-        instances = instances.concat(value.instances.values());
-        
+    this.plugins.values().forEach(function(value){
+            value.instances.forEach(function(value){
+            instances = instances.concat(value.instance);
+        }); 
     });
     return instances;
 };
+
+function getResourceName(typeurl){
+    return (typeurl)?typeurl.substr(typeurl.lastIndexOf("/")+1):undefined;
+}
 
 module.exports = {
     Plugins : Plugins

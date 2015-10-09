@@ -19,8 +19,8 @@ Observations.prototype.getConfiguration = function (complete) {
         if (err) {
             complete(err);
         } else {
-            _self.configuration = results[0];
-            complete(null, "Retrieved observation configuration");
+            _self.typesConfiguration = results[0];
+            complete(null, "Retrieved Things types and instances information");
         }
     });    
 };
