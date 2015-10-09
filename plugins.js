@@ -152,7 +152,10 @@ Plugins.prototype.onCrud = function (pluginName, observation) {
             });
             break;
         case 'PUT':
-            var plugIn = this.plugins.get(pluginName).instances.get(observation['@id']);
+            var id = getResourceName(observation['@id']);
+            var plugIn = this.plugins.get(pluginName).instances.get(id).instance;
+            var plugInConfig = this.plugins.get(pluginName).instances.get(id).config;    
+            plugInConfig[observation['propId']] = observation['newvalue'];
             plugIn.update(observation, 
                 function (err) {
                 if(err){
@@ -161,8 +164,9 @@ Plugins.prototype.onCrud = function (pluginName, observation) {
             }); 
             break;
         case 'DELETE':
-            var plugIn = this.plugins.get(pluginName).instances.get(observation['@id']);
-            this.plugins.get(pluginName).instances.remove(observation['@id']);
+            var id = getResourceName(observation['@id']);
+            var plugIn = this.plugins.get(pluginName).instances.get(id).instance;
+            this.plugins.get(pluginName).instances.remove(id);
             plugIn.stop(function (err) {
                 if(err){
                     logger.error( util.format("Error Deleting a plugin %s id %s error: %s",pluginName, observation['@id'], err.message));
