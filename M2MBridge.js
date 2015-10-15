@@ -26,6 +26,7 @@ function done(err, results) {
     logger = require('./logger').logger;
     if (err) {
         logger.error("Exit with error: " + err.message);
+        exitHandler({cleanup:true, exit:true}, null);
     } else {
         process.on('exit', exitHandler.bind(null,{cleanup:true}));
         process.on('SIGINT', exitHandler.bind(null, {exit:true, exitCode:2}));

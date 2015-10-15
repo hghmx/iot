@@ -3,14 +3,11 @@ var async = require('async');
 var fs = require('fs');
 var extfs = require('extfs');
 var pluginsDir = './plugins';
-var hashMap = require('hashmap');
 var plugininterface = ['start', 'stop', 'update', 'command'];
 //var observations = require('./observations');
 var logger = require('./logger').logger;
 var util = require('util');
 var dapws = require('./dapWs').DapWs;
-
-//when wildcard get implemented GET will be excluded
 ///amtech/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
 var urlDapCrud = '/amtech/things/events?topic=/dap/things/%s&client=%s';
 //'/amtech/things/commands?client=<bridgeId>&thing_type=<thingType>'
@@ -20,40 +17,42 @@ function Plugins( bc, dapClient, observs ){
     this.bc = bc;
     this.dapClient = dapClient;
     this.observs = observs;
-    this.plugins = observs.typesConfiguration;
 }
 
 Plugins.prototype.load = function (complete) {
     var self = this;
-    this.plugins = new hashMap();
     //Nothing to do...
-    if (!fs.existsSync(pluginsDir) || extfs.isEmptySync(pluginsDir)){
+    if (!fs.existsSync(pluginsDir) || extfs.isEmptySync(pluginsDir)) {
         complete(new Error("No plugins to load"));
     }
     self.loadedPlugs = [];
-    
-    var cnfg = new hashMap();
-    cnfg.set("SNMPDevice", {name: 'SNMPDevice', config: {}, instances :new hashMap()});
-    cnfg.get("SNMPDevice").instances.set("instance1", {config:{'@id':"instance1"}});
-    cnfg.get("SNMPDevice").instances.set("instance2", {config:{'@id':"instance2"}});
-    cnfg.get("SNMPDevice").instances.set("instance3", {config:{'@id':"instance3"}});
-    cnfg.get("SNMPDevice").instances.set("instance4", {config:{'@id':"instance4"}});
-    cnfg.get("SNMPDevice").instances.set("instance5", {config:{'@id':"instance5"}});
-    
-    this.plugins = cnfg;
-   
-//    var cnfg = [{name:"SNMPDevice", 
-//                typeCnfg: {'@id':"type1"}, 
-//                instancesCnfg:[{'@id':"instance1"},{'@id':"instance2"},{'@id':"instance3"}]}];
-    async.each(this.plugins.values(), Plugins.prototype.pluged.bind(this), 
-        function (err) {
-            if (err) {
-                complete(err);
-            } else {
-                self.loadedPlugs.push(util.format( "Loaded: %d plugins",  self.getInstances().length));
-                complete(null, self.loadedPlugs);
-            }
-    });
+    this.plugins = self.observs.typesConfiguration;
+
+    async.each(this.plugins.values(), Plugins.prototype.pluged.bind(this),
+            function (err) {
+                if (err) {
+                    complete(err);
+                } else {
+                    async.each(self.plugins.values(), Plugins.prototype.connectWS.bind(self),
+                            function (err) {
+                                if (err) {
+                                    complete(err);
+                                } else {
+                                    self.loadedPlugs.push(util.format("Loaded: %d plugins", self.getInstances().length));
+                                    complete(null, self.loadedPlugs);
+                                }
+                            });
+                }
+            });
+};
+
+Plugins.prototype.connectWS = function (pluginInstance, complete) {
+    async.parallel([pluginInstance.commands.connect.bind(pluginInstance.commands),
+                    pluginInstance.crud.connect.bind(pluginInstance.crud)], 
+                    function(err){
+                        complete(err);
+                    }
+    );
 };
 
 Plugins.prototype.pluged = function (pluginConfig, complete) {
@@ -130,29 +129,29 @@ Plugins.prototype.onCrud = function (pluginName, observation) {
             function (err, instance) {
                 if(err){
                     logger.error( util.format("Error Getting a new  plugin %s id %s information error: %s",pluginName, 
-                    getResourceName(observation['resourceuri']), err.message));
+                    this.observs.getResourceName(observation['resourceuri']), err.message));
                 }else{
                     try{
-                        var pluginName = getResourceName(observation['"@type"']);
+                        var pluginName = this.observs.getResourceName(observation['"@type"']);
                         var plugClass = require(pluginsDir + '/' + pluginName);
-                        var resourceUrn = getResourceName(observation['resourceuri']);
+                        var resourceUrn = this.observs.getResourceName(observation['resourceuri']);
                         self.observs.plugins.get(pluginName).instances.set(resourceUrn, {config:instance});
                         self.newInstance(plugClass, pluginName, 
                                             self.observs.plugins.get(pluginName).config, 
                                             self.observs.plugins.get(pluginName).instances.get(resourceUrn) ,
                         function(err){
                             logger.error( util.format("Error starting a new  plugin %s id %s information error: %s",pluginName,
-                                getResourceName(observation['resourceuri']), err.message));
+                                this.observs.getResourceName(observation['resourceuri']), err.message));
                         });
                     }catch(err){
                         logger.error( util.format("Error Creating a new  plugin %s id %s information error: %s",pluginName,
-                                getResourceName(observation['resourceuri']), err.message));
+                                this.observs.getResourceName(observation['resourceuri']), err.message));
                     }
                 }
             });
             break;
         case 'PUT':
-            var id = getResourceName(observation['@id']);
+            var id = this.observs.getResourceName(observation['@id']);
             var plugIn = this.plugins.get(pluginName).instances.get(id).instance;
             var plugInConfig = this.plugins.get(pluginName).instances.get(id).config;    
             plugInConfig[observation['propId']] = observation['newvalue'];
@@ -164,7 +163,7 @@ Plugins.prototype.onCrud = function (pluginName, observation) {
             }); 
             break;
         case 'DELETE':
-            var id = getResourceName(observation['@id']);
+            var id = this.observs.getResourceName(observation['@id']);
             var plugIn = this.plugins.get(pluginName).instances.get(id).instance;
             this.plugins.get(pluginName).instances.remove(id);
             plugIn.stop(function (err) {
@@ -194,18 +193,13 @@ Plugins.prototype.getInstances = function () {
     var instances = [];
     this.plugins.values().forEach(function(value){
             value.instances.forEach(function(value){
-            instances = instances.concat(value.instance);
+                instances = instances.concat(value.instance);
         }); 
     });
     return instances;
 };
 
-function getResourceName(typeurl){
-    return (typeurl)?typeurl.substr(typeurl.lastIndexOf("/")+1):undefined;
-}
-
 module.exports = {
     Plugins : Plugins
 };
-
 
