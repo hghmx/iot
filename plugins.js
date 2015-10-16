@@ -4,14 +4,13 @@ var fs = require('fs');
 var extfs = require('extfs');
 var pluginsDir = './plugins';
 var plugininterface = ['start', 'stop', 'update', 'command'];
-//var observations = require('./observations');
 var logger = require('./logger').logger;
 var util = require('util');
 var dapws = require('./dapWs').DapWs;
-///amtech/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
-var urlDapCrud = '/amtech/things/events?topic=/dap/things/%s&client=%s';
-//'/amtech/things/commands?client=<bridgeId>&thing_type=<thingType>'
-var urlDapCmds = '/amtech/things/commands?client=%s&thing_type=%s';
+///amtech/push/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
+var urlDapCrud = '/amtech/push/things/events?topic=/dap/things/%s&client=%s';
+///amtech/push/things/commands?client=<client_id>&thingtype=<thing_type>
+var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=%s';
 
 function Plugins( bc, dapClient, observs ){     
     this.bc = bc;
@@ -78,12 +77,12 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
 };
 
 Plugins.prototype.addWebSockets = function (pluginName) {
-    var cmdUrl = util.format(urlDapCrud, pluginName, this.bc.bridgeId);
-    this.plugins.get(pluginName)['commands'] = new dapws(cmdUrl, this.onCommand.bind(this), pluginName);
-    var crudUrl = util.format(urlDapCrud, pluginName, this.bc.bridgeId);
-    this.plugins.get(pluginName)['crud'] = new dapws(crudUrl, this.onCrud.bind(this), pluginName);
+    var wsDapUrl = this.bc.dap.dapUrl.replace('https', 'wss');
+    var cmdUrl = wsDapUrl + util.format(urlDapCmds, this.bc.bridgeId, pluginName);
+    this.plugins.get(pluginName)['commands'] = new dapws(this.bc, cmdUrl, this.onCommand.bind(this), pluginName);
+    var crudUrl = wsDapUrl + util.format(urlDapCrud, pluginName, this.bc.bridgeId);
+    this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName);
 };
-
 
 Plugins.prototype.newInstance = function (plugClass, pluginName, typeC, pluginInstance, complete ) {
     var self = this;

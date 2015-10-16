@@ -4,6 +4,7 @@ var baseUrl = '/amtech';
 var observationsUrl = baseUrl + '/things/events';
 var getConfigUrl = baseUrl + '/system/queries/getobservationconfig';
 var getPluginInstances = baseUrl + '/observersexec/amtech/observers/getThingsByType';
+var geoUrl = baseUrl + '/geo/address';
 
 function DapClient(dapUrl, user, tenant, password) {
     this.dapUrl = dapUrl;
@@ -113,6 +114,28 @@ DapClient.prototype.getThing = function ( url, complete) {
             }
         });
 };
+
+DapClient.prototype.getBoxLocation = function (address, complete) {
+    var self = this;
+    var options = self._options();
+    rest.postJson(self.dapUrl + geoUrl, address, options).on(
+            'complete',
+            function (data, response) {
+                if (response.statusCode !== 200) {
+                    complete(new Error(
+                            'Not a 200 OK response sending observation: '
+                            + response.statusCode));
+                } else if (data instanceof Error) {
+                    complete(data);
+                } else if (data['success'] === false) {
+                    complete(new Error(data['message'] + " (detail: "
+                            + data['messageDetail'] + ")"));
+                } else {
+                    complete(null, data.results);
+                }
+            });
+};
+
 
 
 module.exports = {

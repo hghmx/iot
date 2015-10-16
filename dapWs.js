@@ -1,27 +1,35 @@
 "use strict";
-var ws = require('ws');
-var singleton = null;
-function DapWs( url, onMessage, pluginName ){     
+var websocket = require("websocket");
+var logger = require('./logger').logger;
+var util = require('util');
+function DapWs( bc, url, onMessage, pluginName ){     
     this.url = url;
     this.onMessage = onMessage;
     this.pluginName = pluginName;
+    this.connected = false;
+    this.authorization =  new Buffer(bc.dap.userId + '/' + bc.dap.tenant + ":" + bc.dap.password).toString("Base64");
 }
 
 DapWs.prototype.connect = function (complete) {
+    this.wsclient = new websocket.client();
     var self = this;
     if(self.reconnectInterval){
         clearInterval(self.reconnectInterval);
     }
-    self.ws = new ws(this.url);
-    self.ws.on('open', function() {
-        self.ws.on('message', DapWs.prototype.message.bind(self));       
-        self.ws.on('error', DapWs.prototype.error.bind(self));
-        self.ws.on('close', DapWs.prototype.error.bind(self));
+    this.wsclient.on("connectFailed", function(error) {
+        complete(error);
+    });
+    this.wsclient.on("connect", function(connection) {
+        connection.on("error", DapWs.prototype.error.bind(self));
+        connection.on("close", DapWs.prototype.error.bind(self));
+        connection.on("message",  DapWs.prototype.message.bind(self));
+        logger.debug( 'Connected web socket : ' + self.url);
         complete(null);
-    });
-    this.ws.once('error', function( err ) {
-        complete(err);
-    });
+    });  
+    
+    this.wsclient.connect(this.url, null, null, {"Authorization": "Basic " + this.authorization});    
+    
+    
 };
 
 DapWs.prototype.message = function (data, flags) {
@@ -38,11 +46,13 @@ DapWs.prototype.retry = function() {
 };
 
 DapWs.prototype.close = function () {
+    this.connected = false;
     this.retry();
 };
 
 DapWs.prototype.error = function (err) {
-    this.ws.close();
+    logger.error( util.format("Web socket url %s error %s", this.url, err.message));
+    this.connected = false;
     this.retry();
 };
 

@@ -51,11 +51,12 @@ Bridge.prototype.init = function (complete) {
             done(null);
         }
     });};
+
     async.series([checkDir, createFirstId, readId], function (err) {
         if (err) {
             complete(err);
         } else {
-            complete(null, "Check job directory and read birdge id");
+            complete(null, "Check job directory and read birdge");
         }
     });
 };
@@ -85,7 +86,11 @@ Bridge.prototype.getConfiguration = function (complete) {
             complete(err);
         } else {
             _self.bc = result;
-            _self.bc['bridgeId'] = _self.bridgeId;
+            if(!_self.bc.bridgeId){
+                _self.bc['bridgeId'] = _self.bridgeId;
+            }else{
+                _self.bridgeId = _self.bc.bridgeId;
+            }
             logger = require('./logger').logger;
             var dapClient = require('./dapClient');
             _self.dapClient = new dapClient.DapClient(_self.bc.dap.dapUrl, _self.bc.dap.userId, _self.bc.dap.tenant, _self.bc.dap.password);
@@ -93,7 +98,22 @@ Bridge.prototype.getConfiguration = function (complete) {
             _self.observs = new observations.Observations(_self.bc, _self.dapClient);
             var plugins = require('./plugins');
             _self.plugs = new plugins.Plugins(_self.bc, _self.dapClient, _self.observs);
-            complete(null, "Configuration loaded");
+            
+            if(_self.bc.address){
+                _self.dapClient.getBoxLocation( _self.bc.address, 
+                function(err, result) {
+                    if(err){
+                        complete(err);
+                    }else{
+                        if(result){
+                            _self.bc['location'] = result;
+                        }
+                        complete(null);
+                    }
+                } );
+            }else{
+                complete(null, "Configuration loaded");
+            }
         }
     });
 };
