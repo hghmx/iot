@@ -141,10 +141,7 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
     if(error.code){
         m2mError.errorCode =error.code;
     }
-    m2mError.topic = util.format( "m2mBridge/errors/%s/%s/%s", 
-                                    this.bc.dap.tenant,
-                                    this.bc.dap.userId, 
-                                    pluginName);
+    m2mError.topic = util.format( "m2mBridge/errors/%s", pluginName);
     
     this.observs.send(m2mError);
 };
@@ -161,25 +158,6 @@ Plugins.prototype.onCommand = function (pluginName, observation, complete) {
         complete(err);
     }
 };
-
-/*
-{
-    "topic":"/dap/things/SNMPDevice/PUT/amtech/things/entities/m2mBox111111111111","
-    _tenant":"m2mfollower",
-    "@type":"/amtech/linkeddata/types/composite/observation/observationresoucecrud",
-    "propId":"ipAddress",
-    "resourceuri":"/amtech/things/entities/m2mBox111111111111",
-    "newvalue":"localhost",
-    "guesttenants":[],
-    "oldvalue":"192.0.0.0158",
-    "crudoperation":"PUT",
-    "producer":"system",
-    "detectiontime":"2015-10-19T15:24:20.230Z",
-    "@id":"/amtech/things/observations/m2mBox1111111111113518419797469189",
-    "occurrencetime":"2015-10-19T15:24:19.962Z","
-    _user":"m2mfollower@amtech.mx"
-} 
- */
 
 Plugins.prototype.onCrud = function (pluginName, observation, complete) {
     var self = this;
