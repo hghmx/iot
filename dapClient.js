@@ -5,6 +5,7 @@ var observationsUrl = baseUrl + '/things/events';
 var getConfigUrl = baseUrl + '/system/queries/getobservationconfig';
 var getPluginInstances = baseUrl + '/observersexec/amtech/observers/getThingsByType';
 var geoUrl = baseUrl + '/geo/address';
+var util = require('util');
 
 function DapClient(dapUrl, user, tenant, password) {
     this.dapUrl = dapUrl;
@@ -32,9 +33,10 @@ DapClient.prototype.sendObservation = function (observation, complete) {
             'complete',
             function(data, response) {
                 if (response.statusCode !== 200) {
-                    complete(new Error(
-                            'Not a 200 OK response sending observation: '
-                                    + response.statusCode));
+                    var error = new Error(util.format("Error sending observation, code %d message %s", 
+                            response.statusCode, response.statusMessage));
+                    error.code = response.statusCode;
+                    complete(error);
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
@@ -110,7 +112,7 @@ DapClient.prototype.getThing = function ( url, complete) {
                 complete(new Error(data['message'] + " (detail: "
                         + data['messageDetail'] + ")"));
             } else {
-                complete(null, data.results);
+                complete(null, data);
             }
         });
 };
@@ -135,8 +137,6 @@ DapClient.prototype.getBoxLocation = function (address, complete) {
                 }
             });
 };
-
-
 
 module.exports = {
     DapClient : DapClient

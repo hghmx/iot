@@ -22,7 +22,7 @@ Observations.prototype.getConfiguration = function (complete) {
             complete(err);
         } else {
             if(results.length === 0){
-                    complete(new Error(util.format('The M2MBridge with user id %s has no configuration', bc.dap.userId)));
+                complete(new Error(util.format('The M2MBridge with user id %s has no configuration', bc.dap.userId)));
             }            
             _self.generateSensorConfig( results, function (err, config) {
                 if(err){
@@ -63,10 +63,14 @@ Observations.prototype.sendJob = function (params, callback) {
                 async.apply( dapClient.prototype.sendObservation.bind(this.dapClient), params), 
                 function(err) {
                     if(err){
-                        logger.error(err);
-                        self.reconnectInterval = setInterval(function () {
-                            self.sendJob(params, callback);}, 
-                                self.bc.networkFailed.reconnectWait);                                
+                        logger.error(util.format( "Error %s sending observation type %s", err.message, params['@type']));
+                        if(err instanceof Error && err.code && err.code === 403 ){
+                            callback();
+                        }else{
+                            self.reconnectInterval = setInterval(function () {
+                                self.sendJob(params, callback);}, 
+                                    self.bc.networkFailed.reconnectWait);
+                        }
                     }else{
                         logger.debug( 'sent observation: ' + params['@type']);
                         callback();
@@ -87,7 +91,7 @@ Observations.prototype.send = function (observation) {
         if (err){
             logger.error(err);
         }else{
-            logger.debug( 'enqueued observation: ' + job.data.params['@type']);
+            logger.debug( 'enqueued observation type: ' + job.data.params['@type']);
         }
     });
 };

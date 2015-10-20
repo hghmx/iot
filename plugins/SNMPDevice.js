@@ -19,7 +19,8 @@ SNMPDevice.prototype.stop = function (complete) {
 
 SNMPDevice.prototype.update = function ( observation, complete) {
     try{
-        complete(null);
+        complete(new Error("Testing Error"));
+        //complete(null);
     }catch(e){
         complete(e);
     }

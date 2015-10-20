@@ -56,7 +56,7 @@ Bridge.prototype.init = function (complete) {
         if (err) {
             complete(err);
         } else {
-            complete(null, "Check job directory and read birdge");
+            complete(null, "Check job directory and read bridge");
         }
     });
 };
@@ -107,13 +107,11 @@ Bridge.prototype.getConfiguration = function (complete) {
                     }else{
                         if(result){
                             _self.bc['location'] = result;
-                        }
-                        complete(null);
+                        }                        
                     }
                 } );
-            }else{
-                complete(null, "Configuration loaded");
             }
+            complete(null, "Configuration loaded");
         }
     });
 };

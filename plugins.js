@@ -7,6 +7,7 @@ var plugininterface = ['start', 'stop', 'update', 'command'];
 var logger = require('./logger').logger;
 var util = require('util');
 var dapws = require('./dapWs').DapWs;
+var clone = require('clone');
 ///amtech/push/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
 var urlDapCrud = '/amtech/push/things/events?topic=/dap/things/%s&client=%s';
 ///amtech/push/things/commands?client=<client_id>&thingtype=<thing_type>
@@ -116,73 +117,191 @@ Plugins.prototype.validateInterface = function (name, plugin) {
     }            
 };
 
-Plugins.prototype.onCommand = function (pluginName, observation) {
+Plugins.prototype.sendPluginError = function (pluginName, error) {
+    var m2mError = clone(   {
+                                "errorMessage": "Error testing",
+                                "topic": "amtech/m2mBox/testing",
+                                "targetthings": "[]",
+                                "location": "",
+                                "@type": "/amtech/linkeddata/types/composite/observation/m2mBridgeError",
+                                "creationDate": "2015-10-19T18:51:46.667Z",
+                                "guesttenants": [],
+                                "description": "Simulate an M2M Bridge error observation",
+                                "producer": "simulator",
+                                "errorCode": 1,
+                                "detectiontime": "2015-10-19T18:46:36.000Z",
+                                "@id": "/amtech/things/observations/simulateM2MBridge",
+                                "occurrencetime": "2015-10-19T18:46:36.000Z"
+                            });
+    if(error.message){
+        m2mError.errorMessage = error.message;
+    }else{
+        m2mError.errorMessage = "Unknown error";
+    }
+    if(error.code){
+        m2mError.errorCode =error.code;
+    }
+    m2mError.topic = util.format( "m2mBridge/errors/%s/%s/%s", 
+                                    this.bc.dap.tenant,
+                                    this.bc.dap.userId, 
+                                    pluginName);
+    
+    this.observs.send(m2mError);
 };
 
-Plugins.prototype.onCrud = function (pluginName, observation) {
+Plugins.prototype.onCommand = function (pluginName, observation, complete) {
+    
+    if(observation.targetthings){
+        var targetThings = JSON.parse(observation.targetthings);
+        complete(null);
+    }else{
+        var err = new Error("Command has been sent withou a targetthings property");
+        //send error
+        this.sendPluginError(pluginName, err);
+        complete(err);
+    }
+};
+
+/*
+{
+    "topic":"/dap/things/SNMPDevice/PUT/amtech/things/entities/m2mBox111111111111","
+    _tenant":"m2mfollower",
+    "@type":"/amtech/linkeddata/types/composite/observation/observationresoucecrud",
+    "propId":"ipAddress",
+    "resourceuri":"/amtech/things/entities/m2mBox111111111111",
+    "newvalue":"localhost",
+    "guesttenants":[],
+    "oldvalue":"192.0.0.0158",
+    "crudoperation":"PUT",
+    "producer":"system",
+    "detectiontime":"2015-10-19T15:24:20.230Z",
+    "@id":"/amtech/things/observations/m2mBox1111111111113518419797469189",
+    "occurrencetime":"2015-10-19T15:24:19.962Z","
+    _user":"m2mfollower@amtech.mx"
+} 
+ */
+
+Plugins.prototype.onCrud = function (pluginName, observation, complete) {
     var self = this;
-    switch(observation.crudoperation){
-        case 'POST':
-            //"resourceuri": "/amtech/things/entities/cardemo",
-            this.dapClient.getThing(observation['resourceuri'], 
-            function (err, instance) {
-                if(err){
-                    logger.error( util.format("Error Getting a new  plugin %s id %s information error: %s",pluginName, 
-                    this.observs.getResourceName(observation['resourceuri']), err.message));
-                }else{
-                    try{
-                        var pluginName = this.observs.getResourceName(observation['"@type"']);
-                        var plugClass = require(pluginsDir + '/' + pluginName);
-                        var resourceUrn = this.observs.getResourceName(observation['resourceuri']);
-                        self.observs.plugins.get(pluginName).instances.set(resourceUrn, {config:instance});
-                        self.newInstance(plugClass, pluginName, 
-                                            self.observs.plugins.get(pluginName).config, 
-                                            self.observs.plugins.get(pluginName).instances.get(resourceUrn) ,
-                        function(err){
-                            logger.error( util.format("Error starting a new  plugin %s id %s information error: %s",pluginName,
-                                this.observs.getResourceName(observation['resourceuri']), err.message));
-                        });
-                    }catch(err){
-                        logger.error( util.format("Error Creating a new  plugin %s id %s information error: %s",pluginName,
-                                this.observs.getResourceName(observation['resourceuri']), err.message));
+    var id = self.observs.getResourceName(observation['resourceuri']);
+    function updatePlugIn() {
+        var plugIn = self.plugins.get(pluginName).instances.get(id).instance;
+        self.plugins.get(pluginName).instances.get(id).config[observation['propId']]
+                = observation['newvalue'];
+        plugIn.update(observation,
+                function (err) {
+                    if (err) {
+                        logger.error(util.format("Error Updating a plugin %s id %s error: %s"
+                                , pluginName, id, err.message));
+                        //send error
+                        self.sendPluginError(pluginName, err);
+                    }else{
+                        logger.debug( util.format("Update a plugin type %s with id", pluginName, id));
                     }
-                }
-            });
+                    complete(null);
+                });
+    }
+
+    function newPlugIn() {
+        //"resourceuri": "/amtech/things/entities/cardemo",
+        self.dapClient.getThing(observation['resourceuri'],
+                function (err, instance) {
+                    if (err) {
+                        logger.error(util.format("Error Getting a new  plugin %s id %s information error: %s", pluginName,
+                                self.observs.getResourceName(observation['resourceuri']), err.message));
+                        //send error
+                        self.sendPluginError(pluginName, err);
+                    } else {
+                        try {
+                            var pluginName = self.observs.getResourceName(instance['@type']);
+                            //was created in parallel
+                            if (self.plugins.get(pluginName).instances.has(id)) {
+                                updatePlugIn();
+                            }else{
+                                var plugClass = require(pluginsDir + '/' + pluginName);
+                                var resourceUrn = self.observs.getResourceName(observation['resourceuri']);
+                                self.plugins.get(pluginName).instances.set(resourceUrn, {config: instance});
+                                self.newInstance(plugClass, pluginName,
+                                        self.plugins.get(pluginName).config,
+                                        self.plugins.get(pluginName).instances.get(resourceUrn),
+                                        function (err) {
+                                            if (err) {
+                                                logger.error(util.format("Error starting a new  plugin %s id %s information error: %s", pluginName,
+                                                        self.observs.getResourceName(observation['resourceuri']), err.message));
+                                                //send error
+                                                self.sendPluginError(pluginName, err);
+                                            }else{
+                                                logger.debug( util.format("Created a new  plugin type %s with id", pluginName, id));
+                                            }
+                                        });
+                                
+                            }
+                        } catch (err) {
+                            logger.error(util.format("Error Creating a new  plugin %s id %s information error: %s", pluginName,
+                                    self.observs.getResourceName(observation['resourceuri']), err.message));
+                            self.sendPluginError(pluginName, err);
+                        }
+                    }
+                    complete(null);
+                });
+    }
+
+    switch (observation.crudoperation) {
+        case 'POST':
+            complete(null);
             break;
         case 'PUT':
-            var id = this.observs.getResourceName(observation['@id']);
-            var plugIn = this.plugins.get(pluginName).instances.get(id).instance;
-            var plugInConfig = this.plugins.get(pluginName).instances.get(id).config;    
-            plugInConfig[observation['propId']] = observation['newvalue'];
-            plugIn.update(observation, 
-                function (err) {
-                if(err){
-                    logger.error( util.format("Error Updating a plugin %s id %s error: %s",pluginName, observation['@id'], err.message));
-                }
-            }); 
+            if (self.plugins.get(pluginName).instances.has(id)) {
+                updatePlugIn();
+            } else {
+                newPlugIn();
+            }
             break;
         case 'DELETE':
-            var id = this.observs.getResourceName(observation['@id']);
-            var plugIn = this.plugins.get(pluginName).instances.get(id).instance;
-            this.plugins.get(pluginName).instances.remove(id);
-            plugIn.stop(function (err) {
-                if(err){
-                    logger.error( util.format("Error Deleting a plugin %s id %s error: %s",pluginName, observation['@id'], err.message));
-                }
-            }); 
+            var plugIn = self.plugins.get(pluginName).instances.get(id).instance;
+            if(self.plugins.get(pluginName).instances.has(id)){
+                self.plugins.get(pluginName).instances.remove(id);
+                plugIn.stop(function (err) {
+                    if (err) {
+                        logger.error(util.format("Error Deleting a plugin %s id %s error: %s", pluginName, id, err.message));
+                        //send error
+                        this.sendPluginError(pluginName, err);
+                    }else{
+                        logger.debug( util.format("Delete a plugin type %s with id", pluginName, id));
+                    }
+                    complete(null);
+                });
+            }else{
+                 complete(null);
+            }
             break;
-    };    
+    }
+    ;
 };
 
 Plugins.prototype.stop = function (plugIn, complete) {
-    plugIn.stop( function (err) {
+    plugIn.stop(function (err) {
         complete(err);
     });
 };
 
+Plugins.prototype.closeSocket = function (pluginType, complete) {
+
+    async.parallel([pluginType.commands.endConnection.bind(pluginType.commands),
+        pluginType.crud.endConnection.bind(pluginType.crud)],
+            function (err) {
+                complete(err);
+            });
+};
+
 Plugins.prototype.stopPlugIns = function (complete) {
+    var pluginsType = this.plugins.values();
+    async.each(pluginsType, Plugins.prototype.closeSocket.bind(this),
+            function (err) {
+                complete(err);
+            });
     var instances = this.getInstances();
-    async.each(instances,Plugins.prototype.stop.bind(this),
+    async.each(instances, Plugins.prototype.stop.bind(this),
             function (err) {
                 complete(err);
             });
@@ -190,15 +309,14 @@ Plugins.prototype.stopPlugIns = function (complete) {
 
 Plugins.prototype.getInstances = function () {
     var instances = [];
-    this.plugins.values().forEach(function(value){
-            value.instances.forEach(function(value){
-                instances = instances.concat(value.instance);
-        }); 
+    this.plugins.values().forEach(function (value) {
+        value.instances.forEach(function (value) {
+            instances = instances.concat(value.instance);
+        });
     });
     return instances;
 };
 
 module.exports = {
-    Plugins : Plugins
+    Plugins: Plugins
 };
-
