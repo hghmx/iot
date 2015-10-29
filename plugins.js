@@ -146,10 +146,43 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
     this.observs.send(m2mError);
 };
 
+/*
+[{"thingType":"/amtech/linkeddata/types/composite/entity/smartphone","thingsId":["phone888"]},  
+{"thingType":"/amtech/linkeddata/types/composite/entity/truck","thingsId":["truck888"]}]
+*/
 Plugins.prototype.onCommand = function (pluginName, observation, complete) {
-    
+    var self = this;
     if(observation.targetthings){
         var targetThings = JSON.parse(observation.targetthings);
+        targetThings.forEach(function(tt){
+            pluginName = self.observs.getResourceName(tt.thingType);
+            if (self.plugins.has(pluginName)) {
+                tt.thingsId.forEach(function(instanceId){
+                    if (self.plugins.get(pluginName).instances.has(instanceId)) {
+                        self.plugins.get(pluginName).instances.get(instanceId).instance.command(observation, 
+                        function(err){
+                            if(err){
+                                self.sendPluginError(pluginName, err);
+                                complete(err);
+                            }
+                        } );
+                        
+                    }else{
+                        var err = new Error( 
+                            util.format("Command has ben sent to a plugin %s with an unknown intance %s"
+                                , pluginName, instanceId));
+                        self.sendPluginError(pluginName, err);
+                        complete(err);
+                    }
+                });
+            }else{
+                var err = new Error( 
+                    util.format("Command has ben sent to an unknown plugin  %s"
+                        , pluginName));
+                self.sendPluginError(pluginName, err);
+                complete(err);
+            }
+        });
         complete(null);
     }else{
         var err = new Error("Command has been sent withou a targetthings property");
