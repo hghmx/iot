@@ -20,6 +20,7 @@ var LINKDOWN_OID = "1.3.6.1.6.3.1.1.5.3";
 var LINKUP_OID = "1.3.6.1.6.3.1.1.5.4";
 //trap timestamp
 var TRAP_TIMESTAMP = "1.3.6.1.2.1.1.3.0";
+var TRAP_PORT = 162;
 
 function SNMPDevice() {
 }
@@ -29,12 +30,12 @@ SNMPDevice.prototype.start = function (bc, thingTypeCnfg, thingInfo, complete) {
         var self = this;
         self.client = snmp.createClient();
         var operations = [];
-        self.ip = thingInfo.ipaddress;
+        self.ipaddress = thingInfo.ipaddress;
         self.communityString = thingInfo.communityString;
         self.thingId = thingInfo._name;
         self.thingType = thingInfo["@type"];
         self.frequency = moment.duration(thingInfo.readFrequency).asMilliseconds();
-        self.trapsPort = thingInfo.trapsPort;
+        self.snmpVersion = self.getSnmpVer( thingInfo.snmpVersion);
         
         if(thingInfo.location && thingInfo.location.length>0){
             self.location = thingInfo.location;
@@ -56,31 +57,45 @@ SNMPDevice.prototype.start = function (bc, thingTypeCnfg, thingInfo, complete) {
                 operations.push(self.snmpset.bind(self));
             }
         }
-
         async.parallel(operations,
                 function (err) {
                     self.sendGetResults();
-                    //set get frequency read if any
-                    if (self.hasGets() && !self.getInterval) {
-                        self.client = snmp.createClient();
-                        self.getInterval = setInterval(function () {
-                            self.snmpget(function (err) {
-                                if (err) {
-                                    //send error
-                                    //log error
-                                }
-                                self.sendGetResults();
-                            });
-                        }, self.frequency);
-                    }else{
-                        self.closeClient();
-                    }
-                    //set get traps logic
+                    self.setGetWithFrequency();
                     self.setTrapListener();
                     complete(err);
                 });
     } catch (e) {
         complete(e);
+    }
+};
+
+SNMPDevice.prototype.getSnmpVer = function (ver) {
+    switch (ver) {
+	case "1":
+            return 0;
+	case "2c":
+            return 1;
+	default:
+            throw new Error('SNMP version ' + ver +' is unsupported');
+	}
+};
+
+SNMPDevice.prototype.setGetWithFrequency = function () {   
+    var self = this;
+    self.clearGetInterval();
+    if (self.hasGets() && !self.getInterval) {
+        self.client = snmp.createClient();
+        self.getInterval = setInterval(function () {
+            self.snmpget(function (err) {
+                if (err) {
+                    //send error
+                    //log error
+                }
+                self.sendGetResults();
+            });
+        }, self.frequency);
+    } else {
+        self.closeClient();
     }
 };
 
@@ -129,7 +144,7 @@ SNMPDevice.prototype.get = function (getOid, complete) {
         }
         return null;
     };
-    self.client.get(self.ip, self.communityString, 0, getOid.oid, function (snmpmsg) {
+    self.client.get(self.ipaddress, self.communityString, self.snmpVersion, getOid.oid, function (snmpmsg) {
         snmpmsg.pdu.varbinds.forEach(function (varbind) {
             console.log(varbind.oid + ' = ' + varbind.data.value);
             var getOid = finOidById(varbind.oid);
@@ -158,7 +173,7 @@ SNMPDevice.prototype.snmpset = function (complete) {
 
 SNMPDevice.prototype.set = function (setOid, complete) {
     var self = this;
-    self.client.set(self.ip, self.communityString, 0, setOid.oid, snmp.data.createData({type: setOid.type,
+    self.client.set(self.ipaddress, self.communityString, self.snmpVersion, setOid.oid, snmp.data.createData({type: setOid.type,
         value: setOid.value}), function (snmpmsg) {
         // console.log(snmp.pdu.strerror(snmpmsg.pdu.error_status));
         if (snmpmsg.pdu.error_status !== 0) {
@@ -211,7 +226,7 @@ SNMPDevice.prototype.setTrapListener = function () {
         console.log(snmp.message.serializer(msg));
     });
     
-    var options = {family: 'udp4', port: this.trapsPort, addr:  this.ip};
+    var options = {family: 'udp4', port: TRAP_PORT, addr:  this.ip};
     this.trapListener.bind(options, function(err){
         if(!err){
             self.trapOn = true;
@@ -219,12 +234,16 @@ SNMPDevice.prototype.setTrapListener = function () {
     });
 };
 
+SNMPDevice.prototype.clearGetInterval = function () {
+    if(this.getInterval){
+        clearInterval(this.getInterval);
+        this.getInterval = null;
+    }    
+};
+
 SNMPDevice.prototype.stop = function (complete) {
     try {
-        if(this.getInterval){
-            clearInterval(this.getInterval);
-            this.getInterval = null;
-        }
+        this.clearGetInterval();
         this.closeClient();
         if(this.trapOn || this.trapListener ){
             this.trapListener.close();
@@ -235,10 +254,77 @@ SNMPDevice.prototype.stop = function (complete) {
     }
 };
 
+SNMPDevice.prototype.executeSet = function (setOIDs, complete) {
+    try {
+        var self = this;
+        if (setOIDs.length > 0) {
+            this.setOIDs = JSON.parse(setOIDs);
+            if (this.hasGets()) {
+                this.getResults = [];
+                self.snmpget(function (err) {
+                    if (err) {
+                        complete(err);
+                        //log error
+                    } else {
+                        complete(null);
+                    }
+                });
+            }
+        } else {
+            this.setOIDs = setOIDs;
+            complete(null);
+        }
+    } catch (e) {
+        complete(e);
+    }
+};
+
 SNMPDevice.prototype.update = function (observation, complete) {
     try {
-        complete(new Error("Testing Error"));
-        //complete(null);
+        var self = this;
+        if (observation.newvalue === observation.oldvalue) {
+            complete(null);
+        }
+        if (observation.propId === "readFrequency") {
+            this.frequency = moment.duration(observation.newvalue).asMilliseconds();
+            this.setGetWithFrequency();
+        } else if (observation.propId === "setOIDs") {
+            this.executeSet(observation.newvalue, complete);            
+        } else if (observation.propId === "getOIDs") {
+            if (observation.newvalue.length > 0) {
+                this.getOIDs = JSON.parse(observation.newvalue);
+                if (this.hasGets()) {
+                    this.getResults = [];
+                    self.snmpget(function (err) {
+                        if (err) {
+                            complete(err);
+                            //log error
+                        }else{
+                            self.sendGetResults();
+                            complete(null);
+                        }
+                    });
+                }
+            } else {
+                this.getOIDs = observation.newvalue;
+                complete(null);
+            }
+        } else if (observation.propId === "location") {
+            this.location = observation.newvalue;
+            complete(null);
+        } else if (observation.propId === "ipaddress") {
+            this.ipaddress = observation.newvalue;
+            complete(null);
+        } else if (observation.propId === "snmpVersion") {
+            self.snmpVersion = self.getSnmpVer( observation.newvalue); 
+            complete(null);
+        }else if (observation.propId === "communityString") {
+            this.communityString = observation.newvalue;
+            complete(null);
+
+        }else {
+            complete(null);
+        }
     } catch (e) {
         complete(e);
     }
@@ -246,7 +332,11 @@ SNMPDevice.prototype.update = function (observation, complete) {
 
 SNMPDevice.prototype.command = function (observation, complete) {
     try {
-        complete(null);
+        if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/snmpSet"){
+            this.executeSet(observation.setOIDs, complete); 
+        }else{
+            complete(new Error("SNMPDevice support commands just of observations type snmpSet"));
+        }
     } catch (e) {
         complete(e);
     }

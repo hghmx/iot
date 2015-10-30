@@ -1,10 +1,8 @@
 var snmpDevice = require('./SNMPDevice');
 var deviceInst = {
     "setOIDs": "[{\"oid\":\".1.3.6.1.2.1.1.6.0\", \"type\":\"OctetString\", \"value\":\"Irvine CA\"}]",
-    "trapsPort": 162,
     "_lastmodified": 1446050859600,
     "guestusers": [],
-    "snmpPort": 161,
     "location": "{\"wkt\":\"POINT(-117.72047996520998 33.70534863057765)\",\"sContext\":\"geo\",\"hash\":\"9mur9pyecurupyxgrgrupezz\"}",
     "@type": "/amtech/linkeddata/types/composite/entity/SNMPDevice",
     "_resourcestatus": "valid",
