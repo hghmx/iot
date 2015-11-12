@@ -1,2 +1,4 @@
 /node_modules/
 bridgeConfig.json
+.DS_Store
+.project
