@@ -5,8 +5,8 @@ if(!logger){
     var logger = new (winston.Logger)({
         transports: [
             new (winston.transports.Console)({
-                colorize: cnfg.logger.colorize,
-                level :  cnfg.logger.level
+                colorize: ( typeof cnfg !== 'undefined' &&  cnfg )?cnfg.logger.colorize:true,
+                level :  ( typeof cnfg !== 'undefined' &&  cnfg )?cnfg.logger.level:'info'
             })
         ]
     }); 
