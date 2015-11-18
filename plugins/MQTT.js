@@ -1,6 +1,7 @@
 /**
  * http://usejsdoc.org/
  */
+var logger = require('./../logger').logger;
 
 function MQTT() {
 }
@@ -14,6 +15,7 @@ function MQTT() {
  * @param complete function 
  */
 MQTT.prototype.start = function (bc, thingTypeCnfg, thingInfo, complete) {
+	logger.debug("Starting MQTT plugin");
     try {
         var self = this;
     } catch (e) {

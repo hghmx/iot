@@ -4,7 +4,7 @@ var async = require('async');
 var rObservationConfiguration = 2;
 var jobsDir = './data';
 var bridgeId = './data/bridgeId.json';
-var logger;
+var logger = require('./logger').logger;
 
 function Bridge( ){     
     this.bc = null;    
@@ -62,6 +62,7 @@ Bridge.prototype.init = function (complete) {
 };
 
 Bridge.prototype.getObservsConfiguration = function (complete) {
+    logger.debug("Getting observers configuration");
     this.observs.getConfiguration(complete);
 };
 
@@ -90,8 +91,7 @@ Bridge.prototype.getConfiguration = function (complete) {
                 _self.bc['bridgeId'] = _self.bridgeId;
             }else{
                 _self.bridgeId = _self.bc.bridgeId;
-            }
-            logger = require('./logger').logger;
+            }            
             var dapClient = require('./dapClient');
             _self.dapClient = new dapClient.DapClient(_self.bc.dap.dapUrl, _self.bc.dap.userId, _self.bc.dap.tenant, _self.bc.dap.password);
             var observations = require('./observations');

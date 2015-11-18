@@ -112,8 +112,8 @@ Plugins.prototype.validateInterface = function (name, plugin) {
             notImplemented.push(plugininterface[i]);
         }
     }
-    if(notImplemented.length > 1){
-        new Error("Plugin :" + name + ' does not implement methods '+ notImplemented);
+    if(notImplemented.length > 0){
+        throw new Error("Plugin :" + name + ' does not implement methods '+ notImplemented);
     }            
 };
 
