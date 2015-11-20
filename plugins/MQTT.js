@@ -18,9 +18,7 @@
  * specific language governing permissions and limitations
  * under the License.
  *******************************************************************************/
-/**
- * http://usejsdoc.org/
- */
+
 var logger = require('./../logger').logger;
 
 function MQTT() {
