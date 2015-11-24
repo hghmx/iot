@@ -1,10 +1,31 @@
+/*******************************************************************************
+ * Copyright (C) 2015 AmTech.
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ *******************************************************************************/
+
 "use strict";
 var fs = require('fs');
 var async = require('async');
 var rObservationConfiguration = 2;
 var jobsDir = './data';
 var bridgeId = './data/bridgeId.json';
-var logger;
+var logger = require('./logger').logger;
 
 function Bridge( ){     
     this.bc = null;    
@@ -62,6 +83,7 @@ Bridge.prototype.init = function (complete) {
 };
 
 Bridge.prototype.getObservsConfiguration = function (complete) {
+    logger.debug("Getting observers configuration");
     this.observs.getConfiguration(complete);
 };
 
@@ -90,8 +112,7 @@ Bridge.prototype.getConfiguration = function (complete) {
                 _self.bc['bridgeId'] = _self.bridgeId;
             }else{
                 _self.bridgeId = _self.bc.bridgeId;
-            }
-            logger = require('./logger').logger;
+            }            
             var dapClient = require('./dapClient');
             _self.dapClient = new dapClient.DapClient(_self.bc.dap.dapUrl, _self.bc.dap.userId, _self.bc.dap.tenant, _self.bc.dap.password);
             var observations = require('./observations');
