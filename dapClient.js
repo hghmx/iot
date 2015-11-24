@@ -2,7 +2,7 @@
 var rest = require('restler');
 var baseUrl = '/amtech';
 var observationsUrl = baseUrl + '/things/events';
-var getConfigUrl = baseUrl + '/system/queries/getobservationconfig';
+var getConfigUrl = baseUrl + '/system/queries/observationconfigfromactivities';
 var getPluginInstances = baseUrl + '/observersexec/amtech/observers/getThingsByType';
 var geoUrl = baseUrl + '/geo/address';
 var util = require('util');
@@ -33,10 +33,7 @@ DapClient.prototype.sendObservation = function (observation, complete) {
             'complete',
             function(data, response) {
                 if (response.statusCode !== 200) {
-                    var error = new Error(util.format("Error sending observation, code %d message %s", 
-                            response.statusCode, response.statusMessage));
-                    error.code = response.statusCode;
-                    complete(error);
+                    complete(self.buildError(response, "Sending observation"));
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
@@ -48,6 +45,14 @@ DapClient.prototype.sendObservation = function (observation, complete) {
             });
 };
 
+DapClient.prototype.buildError = function (response, msg) {
+    var error =  new Error(  
+        util.format("%s (%d) %s", msg, response.statusCode,  
+        response.statusMessage ? response.statusMessage : 'Unknown error' ));
+    error.code = response.statusCode;
+    return error;  
+};
+
 DapClient.prototype.getConfiguration = function (complete) {
     var self = this;
     var options = self._options();
@@ -56,10 +61,8 @@ DapClient.prototype.getConfiguration = function (complete) {
     rest.get(self.dapUrl + getConfigUrl, options).on(
         'complete',
         function (data, response) {
-            if (response.statusCode != 200) {
-                complete(new Error(
-                        'Not a 200 OK response while retrieving resource: '
-                        + response.statusCode));
+            if (response.statusCode !== 200) {
+                complete(self.buildError(response, "Getting observation production configuration"));
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
@@ -75,14 +78,12 @@ DapClient.prototype.getPluginsInstances = function (pluginType, complete) {
     var self = this;
     var options = self._options();
     options.query = options.query || {};
-    options.query['/amtech/observers/getThingsByType/entitiesFilter/smartphone/resourcetype'] = pluginType;
+    options.query['/amtech/observers/getThingsByType/entitiesFilter/SNMPDevice/resourcetype'] = pluginType;
     rest.get(self.dapUrl + getPluginInstances, options).on(
         'complete',
         function (data, response) {
             if (response.statusCode !== 200) {
-                complete(new Error(
-                        'Not a 200 OK response while retrieving resource: '
-                        + response.statusCode));
+                complete(self.buildError(response, "Getting plugins instances"));
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
@@ -103,9 +104,7 @@ DapClient.prototype.getThing = function ( url, complete) {
         'complete',
         function (data, response) {
             if (response.statusCode !== 200) {
-                complete(new Error(
-                        'Not a 200 OK response while retrieving resource: '
-                        + response.statusCode));
+                complete(self.buildError(response, "Getting a plugging instance"));
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
@@ -124,9 +123,7 @@ DapClient.prototype.getBoxLocation = function (address, complete) {
             'complete',
             function (data, response) {
                 if (response.statusCode !== 200) {
-                    complete(new Error(
-                            'Not a 200 OK response sending observation: '
-                            + response.statusCode));
+                    complete(self.buildError(response, "Getting bridge location"));
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {

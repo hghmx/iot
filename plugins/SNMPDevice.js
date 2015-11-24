@@ -25,7 +25,7 @@ var TRAP_PORT = 162;
 function SNMPDevice() {
 }
 
-SNMPDevice.prototype.start = function (bc, thingTypeCnfg, thingInfo, complete) {
+SNMPDevice.prototype.start = function (bc, observationsCnfg, thingInfo, complete) {
     try {
         var self = this;
         self.client = snmp.createClient();
@@ -36,6 +36,7 @@ SNMPDevice.prototype.start = function (bc, thingTypeCnfg, thingInfo, complete) {
         self.thingType = thingInfo["@type"];
         self.frequency = moment.duration(thingInfo.readFrequency).asMilliseconds();
         self.snmpVersion = self.getSnmpVer( thingInfo.snmpVersion);
+        self.observationsCnfg = observationsCnfg;
         
         if(thingInfo.location && thingInfo.location.length>0){
             self.location = thingInfo.location;
@@ -103,6 +104,7 @@ SNMPDevice.prototype.sendGetResults = function () {
     if (this.getResults) {
         //send getResults observation
         var snmpRead = this.newSnmpRead(this.getResults);
+        this.sendObservation(snmpRead);
         this.getResults = [];
     }
 };
@@ -349,7 +351,7 @@ SNMPDevice.prototype.newSnmpRead = function (getOIDs) {
             "targetthings": "[]",
             "location": "",
             "description": "",
-            "guesttenants": [],
+            "guesttenants": ["m2mcreator"],
             "@type": "/amtech/linkeddata/types/composite/observation/snmpRead",
             "producer": "",
             "detectiontime": "2015-10-24T15:30:07.000Z",
@@ -360,8 +362,12 @@ SNMPDevice.prototype.newSnmpRead = function (getOIDs) {
         if( this.location){
             snmpRead.location = this.location;
         }
-        snmpRead.targetthings = [{"thingType": this.thingType,"thingsId":[this.thingId]}];
-        snmpRead.getOIDs = getOIDs;
+        
+        snmpRead.targetthings = this.observationsCnfg.get("snmpRead").thingsconfig;
+        snmpRead.producer = this.observationsCnfg.get("snmpRead").producerschema;
+        snmpRead.topic = this.observationsCnfg.get("snmpRead").topicschema;
+        
+        snmpRead.getOIDs = JSON.stringify(getOIDs);
         snmpRead.occurrencetime = new Date().toISOString();
         return snmpRead;
 };
@@ -386,7 +392,10 @@ SNMPDevice.prototype.newSnmpTrup = function ( trapOID, trapTimeTicks, variableBi
     if (this.location) {
         snmpTrup.location = this.location;
     }
-    snmpTrup.targetthings = [{"thingType": this.thingType, "thingsId": [this.thingId]}];
+    
+    snmpTrup.targetthings = this.observationsCnfg.get("snmpTrap").thingsconfig;
+    snmpTrup.producer = this.observationsCnfg.get("snmpTrap").producerschema;
+    snmpTrup.topic = this.observationsCnfg.get("snmpTrap").topicschema;    
     snmpTrup.variableBinds = variableBinds;
     snmpTrup.occurrencetime = new Date().toISOString();
     snmpTrup.trapOID = trapOID;
@@ -414,7 +423,9 @@ SNMPDevice.prototype.newSnmpError = function (code, message) {
     if (this.location) {
         snmpError.location = this.location;
     }
-    snmpError.targetthings = [{"thingType": this.thingType, "thingsId": [this.thingId]}];
+    snmpError.targetthings = this.observationsCnfg.get("snmpError").thingsconfig;
+    snmpError.producer = this.observationsCnfg.get("snmpError").producerschema;
+    snmpError.topic = this.observationsCnfg.get("snmpError").topicschema;    
     snmpError.code = code;
     snmpError.occurrencetime = new Date().toISOString();
     snmpError.message = message;

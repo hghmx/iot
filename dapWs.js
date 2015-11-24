@@ -13,24 +13,28 @@ function DapWs( bc, url, onMessage, pluginName ){
 }
 
 DapWs.prototype.connect = function (complete) {
-    this.wsclient = new websocket.client();
-    var self = this;
-    if(self.reconnectInterval){
-        clearInterval(self.reconnectInterval);
+    try {
+        this.wsclient = new websocket.client();
+        var self = this;
+        if (self.reconnectInterval) {
+            clearInterval(self.reconnectInterval);
+        }
+        this.wsclient.on("connectFailed", function (error) {
+            complete(error);
+        });
+        this.wsclient.on("connect", function (connection) {
+            connection.on("error", DapWs.prototype.error.bind(self));
+            connection.on("close", DapWs.prototype.close.bind(self));
+            connection.on("message", DapWs.prototype.message.bind(self));
+            logger.debug('Connected web socket : ' + self.url);
+            self.connection = connection;
+            complete(null);
+        });
+
+        this.wsclient.connect(this.url, null, null, {"Authorization": "Basic " + this.authorization});
+    } catch (e) {
+        complete(e);
     }
-    this.wsclient.on("connectFailed", function(error) {
-        complete(error);
-    });
-    this.wsclient.on("connect", function(connection) {
-        connection.on("error", DapWs.prototype.error.bind(self));
-        connection.on("close", DapWs.prototype.close.bind(self));
-        connection.on("message",  DapWs.prototype.message.bind(self));
-        logger.debug( 'Connected web socket : ' + self.url);
-        self.connection = connection;
-        complete(null);
-    });  
-    
-    this.wsclient.connect(this.url, null, null, {"Authorization": "Basic " + this.authorization});       
 };
 
 DapWs.prototype.message = function (data) {   

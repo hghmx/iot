@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<llrp:DELETE_ACCESSSPEC xmlns:llrp="http://www.llrp.org/ltk/schema/core/encoding/xml/1.0" Version="1" MessageID="41">
+  <llrp:AccessSpecID>1</llrp:AccessSpecID>
+</llrp:DELETE_ACCESSSPEC>

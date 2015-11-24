@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<llrp:SET_READER_CONFIG xmlns:llrp="http://www.llrp.org/ltk/schema/core/encoding/xml/1.0" Version="1" MessageID="0">
+  <llrp:ResetToFactoryDefault>0</llrp:ResetToFactoryDefault>
+</llrp:SET_READER_CONFIG>
+

@@ -64,7 +64,7 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
         plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
         async.each(pluginConfig.instances.values(), 
             async.apply(Plugins.prototype.newInstance.bind(this), 
-                        plugClass, pluginConfig.name, pluginConfig.config),
+                        plugClass, pluginConfig.name),
             function (err) {
                 if (err) {
                     complete(err);
@@ -85,18 +85,18 @@ Plugins.prototype.addWebSockets = function (pluginName) {
     this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName);
 };
 
-Plugins.prototype.newInstance = function (plugClass, pluginName, typeC, pluginInstance, complete ) {
+Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance, complete ) {
     var self = this;
     try{
         var newPlugin = new plugClass[ pluginName]();
         this.validateInterface(pluginName, newPlugin);        
-        newPlugin.start( typeC, pluginInstance.config, function (err) {
+        newPlugin.start(self.bc, pluginInstance.observations, pluginInstance.config, function (err) {
             if (err) {
                 complete(err);
             } else {
                 pluginInstance['instance'] = newPlugin;
                 //self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
-                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  pluginInstance.config['@id']));
+                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  pluginInstance.id));
                 complete(null);
             }
         });
@@ -146,10 +146,6 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
     this.observs.send(m2mError);
 };
 
-/*
-[{"thingType":"/amtech/linkeddata/types/composite/entity/smartphone","thingsId":["phone888"]},  
-{"thingType":"/amtech/linkeddata/types/composite/entity/truck","thingsId":["truck888"]}]
-*/
 Plugins.prototype.onCommand = function (pluginName, observation, complete) {
     var self = this;
     if(observation.targetthings){
@@ -207,7 +203,7 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
                         //send error
                         self.sendPluginError(pluginName, err);
                     }else{
-                        logger.debug( util.format("Update a plugin type %s with id", pluginName, id));
+                        logger.debug( util.format("Update a plugin type %s with id %s property %s", pluginName, id, observation['propId']));
                     }
                     complete(null);
                 });
@@ -306,16 +302,19 @@ Plugins.prototype.closeSocket = function (pluginType, complete) {
 };
 
 Plugins.prototype.stopPlugIns = function (complete) {
-    var pluginsType = this.plugins.values();
-    async.each(pluginsType, Plugins.prototype.closeSocket.bind(this),
-            function (err) {
-                complete(err);
-            });
-    var instances = this.getInstances();
-    async.each(instances, Plugins.prototype.stop.bind(this),
-            function (err) {
-                complete(err);
-            });
+
+    if (this.plugins) {
+        var pluginsType = this.plugins.values();
+        async.each(pluginsType, Plugins.prototype.closeSocket.bind(this),
+                function (err) {
+                    complete(err);
+                });
+        var instances = this.getInstances();
+        async.each(instances, Plugins.prototype.stop.bind(this),
+                function (err) {
+                    complete(err);
+                });
+    }
 };
 
 Plugins.prototype.getInstances = function () {
