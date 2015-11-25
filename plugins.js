@@ -80,7 +80,7 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
     try{
         //self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:null, crud:null});   
         self.addWebSockets(pluginConfig.name);
-        var plugClass = require(pluginsDir + '/' + pluginConfig.name);
+        var plugClass = require(pluginsDir +'/' + pluginConfig.name + '/' + pluginConfig.name);
         plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
         async.each(pluginConfig.instances.values(), 
             async.apply(Plugins.prototype.newInstance.bind(this), 
