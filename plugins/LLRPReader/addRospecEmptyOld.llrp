@@ -36,8 +36,12 @@
         <llrp:EnablePeakRSSI>1</llrp:EnablePeakRSSI>
         <llrp:EnableFirstSeenTimestamp>0</llrp:EnableFirstSeenTimestamp>
         <llrp:EnableLastSeenTimestamp>0</llrp:EnableLastSeenTimestamp>
-        <llrp:EnableTagSeenCount>0</llrp:EnableTagSeenCount>
+        <llrp:EnableTagSeenCount>1</llrp:EnableTagSeenCount>
         <llrp:EnableAccessSpecID>0</llrp:EnableAccessSpecID>
+        <llrp:C1G2EPCMemorySelector>
+          <llrp:EnableCRC>1</llrp:EnableCRC>
+          <llrp:EnablePCBits>1</llrp:EnablePCBits>
+        </llrp:C1G2EPCMemorySelector>        
       </llrp:TagReportContentSelector>
     </llrp:ROReportSpec>
   </llrp:ROSpec>

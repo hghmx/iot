@@ -27,6 +27,7 @@
     "clone": "^1.0.2",
     "extfs": "0.0.7",
     "hashmap": "^2.0.4",
+    "node-epc": "^0.1.0",
     "restler": "^3.4.0",
     "simple-spinner": "0.0.5",
     "tinq": "0.0.2",
