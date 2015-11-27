@@ -225,25 +225,15 @@ function decode96EPC(tagInfo, complete) {
     epc.parse(tagInfo.EPC96.tag)
         .then(function (parsed) {
             tagInfo.EPC96['name'] = parsed.getName();
-            tagInfo.EPC96['parts'] = parsed.parts;
-            complete(null);
-        })
-        .fail(function (err) {
-            complete(err);
-        });
-};
-
-function get96EPCUrn(tagInfo, complete) {
-    epc.getParser(tagInfo.EPC96['name'].toLowerCase())
-        .then(function (parser) {
-            parser.getUri(tagInfo.EPC96.tag)
+            tagInfo.EPC96['parts'] =  clone(parsed.parts);
+            parsed.getUri(tagInfo.EPC96.tag)
                 .then(function (epcUrn) {
                     tagInfo.EPC96['epcUri'] = epcUrn;
                     complete(null);
-                })
-                .fail(function (err) {
-                    complete(err);
                 });
+        })
+        .fail(function (err) {
+            complete(err);
         });
 };
 
@@ -255,14 +245,13 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
     var tagInfo;
     //new
     if (!self.tagEvents.has(tagUrn)) {
-        tagInfo = {tag: tag, antenna: antenna};
+        tagInfo = {tag:tag, antenna:antenna}; 
         if (ts.getEPCParameterSync().getNameSync() === 'EPC_96') {
             tagInfo['EPC96'] = {};
             tagInfo.EPC96['tag'] = tag.padLeft(epc96Size, '0');
             if (self.decode) {
-               async.series([
-                    async.apply(decode96EPC, tagInfo),
-                    async.apply(get96EPCUrn, tagInfo)], function(err){
+                decode96EPC(tagInfo,
+                    function(err){
                         if(!err){
                             self.updateTagInfo(tagUrn, ts, tagInfo);
                             self.addTagInfo(tagUrn, tagInfo);
@@ -341,17 +330,17 @@ LLRPReader.prototype.eventCycle = function (accessReport) {
                         //Send new event
                         console.log('--------------------------------NEW---------------------------------------------');
                         self.newTags.forEach(function (tagUrn) {
-                            var tagInfo = self.tagEvents.get(tagUrn);
-                            tagInfo['smoothingResult'] = smoothNew;
-                            smoothTags.push(tagInfo);
-                            console.log(util.format("Tag urn %s \n json%s", tagUrn, JSON.stringify(tagInfo, undefined, 4)));
+                            var tagNew = self.tagEvents.get(tagUrn);
+                            tagNew['smoothingResult'] = smoothNew;
+                            smoothTags.push(tagNew);
+                            console.log(util.format("Tag urn %s \n json%s", tagUrn, JSON.stringify(tagNew, undefined, 4)));
                         });
                         console.log('--------------------------------LOST---------------------------------------------');
                         self.lostTags.forEach(function (tagUrn) {
-                            var tagInfo = self.tagEvents.get(tagUrn);
-                            tagInfo['smoothingResult'] = smoothLost;
-                            smoothTags.push(tagInfo);
-                            console.log(util.format("Tag urn %s \n json%s", tagUrn, JSON.stringify(tagInfo, undefined, 4)));
+                            var tagLost = self.tagEvents.get(tagUrn);
+                            tagLost['smoothingResult'] = smoothLost;
+                            smoothTags.push(tagLost);
+                            console.log(util.format("Tag urn %s \n json%s", tagUrn, JSON.stringify(tagLost, undefined, 4)));
                         });
                         self.sendObservatios(self.tagEvents.values());
                     }
