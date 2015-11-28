@@ -33,8 +33,10 @@ var epc = require('node-epc');
 var clone = require('clone');
 var async = require('async');
 var epc96Size = 24;
-var smoothNew = 'appeared';
-var smoothLost = 'dessapeared';
+var smoothNew = 'new';
+var smoothLost = 'lost';
+var llrpObservation =  ("./llrpObservation");
+
 String.prototype.padLeft = function (len, c) {
     var s = this, c = c || '0';
     while (s.length < len)
@@ -44,8 +46,7 @@ String.prototype.padLeft = function (len, c) {
 
 function LLRPReader() {
 
-}
-;
+};
 
 LLRPReader.prototype.getLLRPCmd = function (filename) {
     var file = new File(filename);
@@ -73,11 +74,19 @@ LLRPReader.prototype.start = function (bc, observationsCnfg, thingInfo, complete
     try {
         var self = this;
         self.smoothing = true;
-        self.decode = true;
+        self.decodeEPCValues = true;
+        self.reportAmountForSmoothing = 3;
+        self.useSingleDecode96EPC = true;
+        self.groupReport = true;
+        
         self.setCommands();
         self.configReaderSet = false;
         self.isConnected = false;
         self.msgBuffers = new msgBuffers.MsgBuffers();
+        self.llrpObservs = new llrpObservation.LLRPObservations(observationsCnfg,
+                                                                self.decodeEPCValues, 
+                                                                self.useSingleDecode96EPC, 
+                                                                self.groupReport);
         self._complete = complete;
         self.socket = new net.Socket();
         // timeout after 60 seconds.
@@ -224,7 +233,7 @@ LLRPReader.prototype.sendMessage = function (messageName, llrpMessage) {
 function decode96EPC(tagInfo, complete) {
     epc.parse(tagInfo.EPC96.tag)
         .then(function (parsed) {
-            tagInfo.EPC96['name'] = parsed.getName();
+            tagInfo['name'] = parsed.getName().toLowerCase();;
             tagInfo.EPC96['parts'] =  clone(parsed.parts);
             parsed.getUri(tagInfo.EPC96.tag)
                 .then(function (epcUrn) {
@@ -245,11 +254,11 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
     var tagInfo;
     //new
     if (!self.tagEvents.has(tagUrn)) {
-        tagInfo = {tag:tag, antenna:antenna}; 
+        tagInfo = {tagUrn: tagUrn, tag:tag, antenna:antenna, reportAmountForSmoothing:0}; 
         if (ts.getEPCParameterSync().getNameSync() === 'EPC_96') {
             tagInfo['EPC96'] = {};
             tagInfo.EPC96['tag'] = tag.padLeft(epc96Size, '0');
-            if (self.decode) {
+            if (self.decodeEPCValues) {
                 decode96EPC(tagInfo,
                     function(err){
                         if(!err){
@@ -259,15 +268,15 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
                         }
                     });
             } else {
-                tagInfo.EPC96['name'] = 'epc-96';
+                tagInfo['name'] = 'encoded96';
                 tagInfo.EPC96['tag'] = tag;
                 self.updateTagInfo(tagUrn, ts, tagInfo);
                 self.addTagInfo(tagUrn, tagInfo);
                 complete(null);
-
             }
         } else if (ts.getEPCParameterSync().getNameSync() === 'EPCData') {
             tagInfo['EPCData'] = {};
+            tagInfo['name'] = 'data';
             tagInfo.EPCData['tag'] = tag;
             tagInfo.EPCData['size'] = ts.getEPCParameterSync().getEPCSync().sizeSync();
             tagInfo.EPCData['binaryData'] = ts.getEPCParameterSync().getEPCSync().encodeBinarySync().toStringSync();
@@ -301,9 +310,9 @@ LLRPReader.prototype.updateTagInfo = function (tagUrn, ts, tagInfo) {
     //no lost
     if (self.smoothing && self.lostTags.indexOf(tagUrn) !== -1) {
         self.lostTags.splice(self.lostTags.indexOf(tagUrn), 1);
+        tagInfo['reportAmountForSmoothing'] = 0;
     }
 };
-
 
 LLRPReader.prototype.eventCycle = function (accessReport) {
     var self = this;
@@ -318,6 +327,7 @@ LLRPReader.prototype.eventCycle = function (accessReport) {
                 if (err) {
                     console.error(err);
                 } else {
+                    self.applySmooth();
                     if (!self.smoothing) {
                         //Send tags event
                         console.log('-------------------------------------------------------------------------------------------------');
@@ -359,8 +369,25 @@ LLRPReader.prototype.eventCycle = function (accessReport) {
     }
 };
 
-LLRPReader.prototype.sendObservatios = function (tagsInfo) {
+LLRPReader.prototype.applySmooth = function () {
+    var self = this;
+    var nonLost = [];
+    for(var i =0; i <  self.lostTags.length; i++ ){
+        var lostUrn = self.lostTags[i];
+        var tagSmooth = self.tagEvents.get(lostUrn);
+        if(tagSmooth.reportAmountForSmoothing < this.reportAmountForSmoothing){
+            tagSmooth.reportAmountForSmoothing += 1;
+            nonLost.push(i);
+        }
+    };
+    //Remove from lost
+    for(var index in nonLost){
+        self.lostTags.splice(index, 1);
+    }    
+};
 
+LLRPReader.prototype.sendObservatios = function (tagsInfo) {
+    var observations = this.llrpObservs.getEPCObservations(tagsInfo);
 };
 
 LLRPReader.prototype.stop = function (complete) {
@@ -387,50 +414,5 @@ LLRPReader.prototype.update = function (observation, complete) {
     } catch (e) {
         complete(e);
     }
-};
-
-LLRPReader.prototype.decode96EPC = function (code, message) {
-    var decode96EPC = clone(
-        {
-            "targetthings": "[]",
-            "guestusers": [],
-            "documentType": "",
-            "serialReference": "",
-            "location": "",
-            "companyPrefix": "",
-            "serialNumber": "",
-            "smoothingResult": "new",
-            "epcScheme": "",
-            "assetType": "",
-            "description": "",
-            "itemReference": "",
-            "locationReference": "",
-            "topic": "",
-            "managerNumber": "",
-            "groupReportResult": "",
-            "@type": "/amtech/linkeddata/types/composite/observation/decode96EPC",
-            "objectClass": "",
-            "extension": "",
-            "creationDate": "2015-11-26T06:09:10.939Z",
-            "guesttenants": [],
-            "epcUri": "",
-            "serviceReference": "",
-            "producer": "",
-            "cAGEOrDODAAC": "",
-            "tagEncoding": "",
-            "detectiontime": "2015-11-25T20:20:25.000Z",
-            "occurrencetime": "2015-11-25T20:20:25.000Z",
-            "@id": "/amtech/things/observations/decodeEPCSimulation"
-        });
-    if (this.location) {
-        decode96EPC.location = this.location;
-    }
-    decode96EPC.targetthings = this.observationsCnfg.get("decode96EPC").thingsconfig;
-    decode96EPC.producer = this.observationsCnfg.get("decode96EPC").producerschema;
-    decode96EPC.topic = this.observationsCnfg.get("decode96EPC").topicschema;
-    decode96EPC.code = code;
-    decode96EPC.occurrencetime = new Date().toISOString();
-    decode96EPC.message = message;
-    return decode96EPC;
 };
 module.exports.LLRPReader = LLRPReader;
