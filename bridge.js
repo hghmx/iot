@@ -128,11 +128,12 @@ Bridge.prototype.getConfiguration = function (complete) {
                     }else{
                         if(result){
                             _self.bc['location'] = result;
+                            complete(null, "Configuration loaded");
                         }                        
                     }
                 } );
             }
-            complete(null, "Configuration loaded");
+            
         }
     });
 };

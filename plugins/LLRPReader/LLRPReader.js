@@ -18,7 +18,6 @@
 // * specific language governing permissions and limitations
 // * under the License.
 // *******************************************************************************/
-
 var fs = require("fs");
 var java = require("java");
 java.classpath.push("./ltkjava-1.0.0.7-with-dependencies.jar");
@@ -36,6 +35,7 @@ var epc96Size = 24;
 var smoothNew = 'new';
 var smoothLost = 'lost';
 var llrpObservation =  ("./llrpObservation");
+var logger = require('./../logger').logger;
 
 String.prototype.padLeft = function (len, c) {
     var s = this, c = c || '0';
@@ -70,34 +70,48 @@ LLRPReader.prototype.setCommands = function () {
     this.enableEventsAndReports = this.getLLRPCmd("enableEventsAndReports.llrp");
 };
 
-LLRPReader.prototype.start = function (bc, observationsCnfg, thingInfo, complete) {
+LLRPReader.prototype.start = function (bc, observationsCnfg, thingInstance, complete) {
+    this.smoothing = thingInstance.smoothing;
+    this.decodeEPCValues = thingInstance.decodeEPCValues;
+    this.reportAmountForSmoothing = thingInstance.reportAmountForSmoothing;
+    this.useSingleDecode96EPC = thingInstance.useSingleDecode96EPC;
+    this.groupReport = thingInstance.groupReport;
+    this.antennas = JSON.parse( thingInstance.antennas);     
+    this.port = thingInstance.port;
+    this.ipaddress = thingInstance.ipaddress;
+    this.observationsCnfg = observationsCnfg;
+    this.location = bc.location.        
+    this.setCommands();
+    this.msgBuffers = new msgBuffers.MsgBuffers();
+    this.name = thingInstance._name;
+    this.urn = thingInstance["@id"];   
+    this.connectReader(complete);
+};
+
+LLRPReader.prototype.connectReader = function ( complete) {
     try {
         var self = this;
-        self.smoothing = true;
-        self.decodeEPCValues = true;
-        self.reportAmountForSmoothing = 3;
-        self.useSingleDecode96EPC = true;
-        self.groupReport = true;
         
-        self.setCommands();
         self.configReaderSet = false;
+        
         self.isConnected = false;
-        self.msgBuffers = new msgBuffers.MsgBuffers();
-        self.llrpObservs = new llrpObservation.LLRPObservations(observationsCnfg,
+        self.llrpObservs = new llrpObservation.LLRPObservations(self.location,
+                                                                self.observationsCnfg,
                                                                 self.decodeEPCValues, 
                                                                 self.useSingleDecode96EPC, 
-                                                                self.groupReport);
+                                                                self.groupReport,
+                                                                self.antennas);
         self._complete = complete;
         self.socket = new net.Socket();
         // timeout after 60 seconds.
         self.socket.setTimeout(60000, function () {
-            //log error
-            //send error
-            var a = 'a';
+            //send llrperror
+            msg = util.format("LLRP reader %s timeout", self.name );
+            logger.error(msg);
+            self.sendError(new Error(msg));
         });
         // connect with reader
-        self.client = self.socket.connect(thingInfo.port, thingInfo.ipaddress, function () {
-            //log sucsesss
+        self.client = self.socket.connect(self.port, self.ipaddress, function () {
             self.tagEvents = new hashMap();
         });
         // whenever reader sends data.
@@ -105,14 +119,18 @@ LLRPReader.prototype.start = function (bc, observationsCnfg, thingInfo, complete
         //the reader or client has ended the connection.
         self.client.on('end', function () {
             //send llrpError
+            msg = util.format("LLRP reader %s end connection", self.name );
+            logger.error(msg);            
+            self.sendError(new Error(msg));
         });
         //cannot connect to the reader other than a timeout.
         self.client.on('error', function (err) {
-            //send llrpError
+            //send m2mError
             complete(err);
         });
     } catch (e) {
         throw(e);
+        //send m2mError
         complete(e);
     }
 };
@@ -141,13 +159,12 @@ LLRPReader.prototype.startEventCycle = function (data) {
                         if (llrpMessage.getReaderEventNotificationDataSync().getConnectionAttemptEventSync().getStatusSync().toStringSync()
                             === 'Success') {
                             self.isConnected = true;
+                            logger.info(util.format('LLRP reader % connected', self.name)); 
                             self.sendMessage('GET_READER_CAPABILITIES', self.getReaderCapability);
                         } else {
                             self.isConnected = false;
                             self._complete(new Error(util.format("Error connection to reader ip %s port %d", "ip", "port")));
                         }
-                    } else {
-                        //console.log(llrpMessage.toXMLStringSync());
                     }
                     break;
                     //2
@@ -387,7 +404,21 @@ LLRPReader.prototype.applySmooth = function () {
 };
 
 LLRPReader.prototype.sendObservatios = function (tagsInfo) {
-    var observations = this.llrpObservs.getEPCObservations(tagsInfo);
+    var obsrvsGroups = this.llrpObservs.getEPCObservations(tagsInfo);
+    obsrvsGroups.forEach(function( group){
+        group.forEach(function( obsrv){
+            this.sendObservation(obsrv);
+        });
+    });
+};
+
+LLRPReader.prototype.sendError = function (error) {
+    var llrpError = this.llrpObservs.getEPCObservations('llrpError');
+    if(error.code){
+        llrpError.code = error.code;
+    }
+    llrpError.message = error.message;
+    this.sendObservation(llrpError);
 };
 
 LLRPReader.prototype.stop = function (complete) {
@@ -404,13 +435,26 @@ LLRPReader.prototype.stop = function (complete) {
 
 LLRPReader.prototype.update = function (observation, complete) {
     try {
+        //stop if needed
+        //set property
+        ////connect reader
+        //start if needed
     } catch (e) {
         complete(e);
     }
 };
 
-LLRPReader.prototype.update = function (observation, complete) {
+LLRPReader.prototype.command = function (observation, complete) {
     try {
+        if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/epcKill"){
+            //send llrp kill command
+        }else if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/epcWrite"){
+            //send llrp write command
+        }else if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/epcGPIO"){
+            //send llrp gpio
+        }else{
+            complete(new Error("LLRPReader support commands of observations type epcKill, epcWrite and epcGPIO"));
+        }
     } catch (e) {
         complete(e);
     }

@@ -19,6 +19,7 @@
 // * under the License.
 // *******************************************************************************/
 var clone = require('clone');
+var hashMap = require('hashmap');
 var epcEncodings = ["dod", "gdti", "giai", "gid", "grai", "gsrn", "raw", "sgln", "sgtin", "sscc"];
 var decodedParts = ['Filter', 'Partition', 'CompanyPrefix', 'ItemReference', 'SerialNumber', 
                     'SerialReference', 'LocationReference', 'Extension', 'AssetType',
@@ -262,26 +263,51 @@ var epcObservations =  [
         "producer": "",
         "tagEncoding": "dod",
         "occurrencetime": "Sat Nov 28 21:38:23 UTC 2015"
-    }
+    },
+    {   "topic": "",
+        "targetthings": "[]",
+        "location": "",
+        "@type": "/amtech/linkeddata/types/composite/observation/llrpError",
+        "code": 0,
+        "message": "",
+        "creationDate": "Sun Nov 29 16:38:51 UTC 2015",
+        "description": "",
+        "guesttenants": [],
+        "producer": "",
+        "occurrencetime": "Sun Nov 29 16:38:51 UTC 2015"
+    }    
 ];               
                 
 String.prototype.lowerFirstLetter = function() {
     return this.charAt(0).toLowerCase() + this.slice(1);
 };
                 
-function LLRPObservations(observationsCnfg, 
+function LLRPObservations(location,
+                          observationsCnfg, 
                           decodeEPCValues, 
-                          useSingleDecode96EPC) {
+                          useSingleDecode96EPC,
+                          groupReport,
+                          antennas) {
+    this.location = location;
     this.observationsCnfg = observationsCnfg;
     this.decodeEPCValues = decodeEPCValues;
     this.useSingleDecode96EPC = useSingleDecode96EPC;
+    this.groupReport = groupReport;
+    this.antennas = antennas;
+    this.groupAntennas = [];
+    this.antennas.forEach(function (antenna){
+        if(antenna.groupReport){
+            this.groupAntennas.push(antenna.id);
+        }
+    });
+    this.observsGroups  = new hashMap();
 };
 
 LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
     var self = this;
     var epcObsrv;
     var observationName;
-    var observations  = [];
+    var observationGroups = [];
     tagsInfo.forEach(function (tagToSend) {
         if( self.useSingleDecode96EPC &&  tagToSend.name in epcEncodings){
             observationName = 'decode96EPC';
@@ -317,8 +343,34 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
         epcObsrv.producer = this.observationsCnfg.get(observationName).producerschema;
         epcObsrv.topic = this.observationsCnfg.get(observationName).topicschema;
         epcObsrv.occurrencetime = new Date().toISOString();
-        observations.push(epcObsrv);
+
+        
+        
+        
+        var key;
+        if(tagsInfo.antenna in this.groupAntennas){
+            key =  tagsInfo.antenna + '/' + tagToSend.name;
+        }else if(this.groupReport){
+            key = tagToSend.name;
+        }else{
+            key = '_all_';
+        }
+        if( !this.observsGroups.has(key)){
+            this.observsGroups.set( key , [epcObsrv]);
+        }else{
+            this.observsGroups.get(key).push(epcObsrv);
+        }
     });
+    if(!this.groupReport && this.groupAntennas.length ===0 ){
+        observationGroups.push(this.observsGroups.get( '_all_'));
+    }else{
+        this.observsGroups.forEach(function( tagsGroup){
+            tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
+            observationGroups.push(tagsGroup[0]); 
+        });
+    }
+    this.observsGroups.clear();
+    return observationGroups;
 };
 
 LLRPObservations.prototype.getObsrvInstance = function (obsrvName) {

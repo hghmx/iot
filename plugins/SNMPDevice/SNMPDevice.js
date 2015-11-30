@@ -29,6 +29,7 @@ require('string.prototype.endswith');
 var moment = require('moment');
 var util = require('util');
 var clone = require('clone');
+var logger = require('./../logger').logger;
 //snmpTrapOID
 var SNMP_TRAP_OID = "1.3.6.1.6.3.1.1.4.1.0";
 //coldStart OID 
