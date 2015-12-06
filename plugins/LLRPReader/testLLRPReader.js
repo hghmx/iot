@@ -1,74 +1,46 @@
-/*******************************************************************************
- * Copyright (C) 2015 AmTech.
- *
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- *******************************************************************************/
+///*******************************************************************************
+// * Copyright (C) 2015 AmTech.
+// *
+// * Licensed to the Apache Software Foundation (ASF) under one
+// * or more contributor license agreements.  See the NOTICE file
+// * distributed with this work for additional information
+// * regarding copyright ownership.  The ASF licenses this file
+// * to you under the Apache License, Version 2.0 (the
+// * "License"); you may not use this file except in compliance
+// * with the License.  You may obtain a copy of the License at
+// *
+// *   http://www.apache.org/licenses/LICENSE-2.0
+// *
+// * Unless required by applicable law or agreed to in writing,
+// * software distributed under the License is distributed on an
+// * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// * KIND, either express or implied.  See the License for the
+// * specific language governing permissions and limitations
+// * under the License.
+// *******************************************************************************/
 
 var llrpReader = require('./LLRPReader');
-
 var epc = require('node-epc');
-
-//epc.parse('307b5df88f6a210009a5ffa4')
-//    .then(function(parsed) {
-//        console.log('Encoding = ' + parsed.getName());
-//        console.log('Company Prefix = ' + parsed.parts.CompanyPrefix);
-//        console.log('Item Reference = ' + parsed.parts.ItemReference);
-//        console.log('Serial Number = ' + parsed.parts.SerialNumber);
-//    })
-//    .fail(function(err) {
-//        console.error(err);
-//    });
-//
-//epc.parse('00460000000000000001a8b')
-//    .then(function(parsed) {
-//        console.log('Encoding = ' + parsed.getName());
-//    })
-//    .fail(function(err) {
-//        console.error(err);
-//    });
-//    
-//    epc.parse('0013098a82120222128092d0')
-//    .then(function(parsed) {
-//        console.log('Encoding = ' + parsed.getName());
-//    })
-//    .fail(function(err) {
-//        console.error(err);
-//    });
-//    
-//    
-// epc.parse('201307118727010001010a01')
-//    .then(function(parsed) {
-//        console.log('Encoding = ' + parsed.getName());
-//    })
-//    .fail(function(err) {
-//        console.error(err);
-//    });   
-
-
-process.on('exit', exitHandler.bind(null,{cleanup:true}));
-process.on('SIGINT', exitHandler.bind(null, {exit:true, exitCode:2}));
-process.on('uncaughtException', exitHandler.bind(null, {exit:false, exitCode:99}));
-
+var winston = require('winston');
+var logger = new (winston.Logger)({
+    transports: [
+        new (winston.transports.Console)({
+            colorize: true,
+            level: 'debug'
+        })]
+});
+logger.on('error',
+    function (err) {
+        console.error(err);
+    });
+process.on('exit', exitHandler.bind(null, {cleanup: true}));
+process.on('SIGINT', exitHandler.bind(null, {exit: true, exitCode: 2}));
+process.on('uncaughtException', exitHandler.bind(null, {exit: false, exitCode: 99}));
 var llrpClientM2mBridge = {
     "port": 5084,
     "guestusers": [],
     "_lastmodified": 1448813406163,
-    "location": "{\"wkt\":\"POINT(-70.224609375 26.745610382199022)\",\"sContext\":\"geo\",\"hash\":\"dky01uzurzpurvrzpfxcxb2p\"}",
+    "location": {"wkt": "POINT(-117.825982 33.685697)", "sContext": "geo"},
     "decodeEPCValues": true,
     "@type": "/amtech/linkeddata/types/composite/entity/LLRPReader",
     "_resourcestatus": "valid",
@@ -76,7 +48,7 @@ var llrpClientM2mBridge = {
     "smoothing": true,
     "reportAmountForSmoothing": 2,
     "_name": "llrpClientM2mBridge",
-    "ipaddress": "192.168.1.146",
+    "ipaddress": "192.168.1.147",
     "emaillist": "",
     "instanceobservationconfig": "{}",
     "creationDate": "2015-11-29T16:04:28.790Z",
@@ -84,52 +56,67 @@ var llrpClientM2mBridge = {
     "guesttenants": [],
     "groupReport": false,
     "phonelist": "",
-    "antennas": "[{id:1,name:\"cuarto\",groupReport:true,decode:true}]",
+    "antennas": "[{\"id\":1,\"name\":\"cuarto\",\"groupReport\":true,\"decode\":true}]",
     "@id": "/amtech/things/entities/llrpClientM2mBridge",
     "frequencyOfReport": 6000,
     "_user": "m2mcreator@amtech.mx",
     "useSingleDecode96EPC": false
-}
+};
 
 
-var bc = {"description":"AMTech M2M Bridge",
-           "dap":{"dapUrl":"https://dapdev.amtech.mx",
-                  "userId":"follower_m2mcreator@@amtech.mx",
-                  "tenant":"follower_m2mcreator@@amtech.mx"
-                 },"networkFailed":{"retries":5,"failedWait":3000,"reconnectWait":180000},
-                 "pluginLoad":{"continueWithError":true},
-                 "logger":{"colorize":true,"level":"debug"},
-                 "address":{"country":"usa","city":"irvine","road":"","number":""},
-                 "bridgeId":"m2mBridgeDevelopment",
-                 "location": {"wkt":"POINT(-117.72047996520998 33.70534863057765)","sContext":"geo"},
-            };
+var hashMap = require('hashmap');
+var observationsCnfg = new hashMap();
+
+observationsCnfg.multi(
+"llrpError",
+{"name":"llrpError","topicschema":"m2mBridge/#{country_code}/#{city}/errors","producerschema":"llrpClientM2mBridge","thingsconfig":"[{\"thingType\":\"/amtech/linkeddata/types/composite/entity/LLRPReader\",\"thingsId\":[\"llrpClientM2mBridge\"]}]"},
+"dataEPC",
+{"name":"dataEPC","topicschema":"m2mBridge/#{country_code}/#{city}/antenna-#{antennaId}","producerschema":"llrpClientM2mBridge/[antenna-#{antennaId}]","thingsconfig":"[{\"thingType\":\"/amtech/linkeddata/types/composite/entity/LLRPReader\",\"thingsId\":[\"llrpClientM2mBridge\"]}]"},
+"decode96EPC",
+{"name":"decode96EPC","topicschema":"m2mBridge/#{country_code}/#{city}/antenna-#{antennaId}","producerschema":"llrpClientM2mBridge/[antenna-#{antennaId}]","thingsconfig":"[{\"thingType\":\"/amtech/linkeddata/types/composite/entity/LLRPReader\",\"thingsId\":[\"llrpClientM2mBridge\"]}]"},    
+"encoded96EPC",
+{"name":"encoded96EPC","topicschema":"m2mBridge/#{country_code}/#{city}/antenna-#{antennaId}","producerschema":"llrpClientM2mBridge/[antenna-#{antennaId}]","thingsconfig":"[{\"thingType\":\"/amtech/linkeddata/types/composite/entity/LLRPReader\",\"thingsId\":[\"llrpClientM2mBridge\"]}]"},
+"rawEPC",
+{"name":"rawEPC","topicschema":"m2mBridge/#{country_code}/#{city}/antenna-#{antennaId}","producerschema":"llrpClientM2mBridge/[antenna-#{antennaId}]","thingsconfig":"[{\"thingType\":\"/amtech/linkeddata/types/composite/entity/LLRPReader\",\"thingsId\":[\"llrpClientM2mBridge\"]}]"},
+"sgtinEPC",
+{"name":"sgtinEPC","topicschema":"m2mBridge/#{country_code}/#{city}/antenna-#{antennaId}/#{companyPrefix}/#{smoothingResult}","producerschema": "llrpClientM2mBridge/[antenna-#{antennaId}]","thingsconfig":"[{\"thingType\":\"/amtech/linkeddata/types/composite/entity/epcThingForTesting\",\"thingsId\":[\"\"]}]"}
+);
 
 
+var bc = {"description": "AMTech M2M Bridge",
+    "dap": {"dapUrl": "https://dapdev.amtech.mx",
+        "userId": "follower_m2mcreator@@amtech.mx",
+        "tenant": "follower_m2mcreator@@amtech.mx"
+    }, "networkFailed": {"retries": 5, "failedWait": 3000, "reconnectWait": 180000},
+    "pluginLoad": {"continueWithError": true},
+    "logger": {"colorize": true, "level": "debug"},
+    "address": {"country": "usa", "city": "irvine", "road": "", "number": ""},
+    "bridgeId": "m2mBridgeDevelopment",
+    "location": {"wkt": "POINT(-117.825982 33.685697)", "sContext": "geo"},
+};
 
-
-
-
-var r = new llrpReader.LLRPReader( );
-
+var r = new llrpReader.LLRPReader();
 function exitHandler(options, err) {
-    if (options.cleanup){
+    if (options.cleanup) {
         r.stop();
         console.log('Stopped plugins...');
     }
-    if (err && typeof err ===  'object'){
-         console.error(err.stack);
+    if (err && typeof err === 'object') {
+        console.error(err.stack);
     }
-    if (options.exit){
-        if(options.exitCode===2){
+    if (options.exit) {
+        if (options.exitCode === 2) {
             console.log('Ctrl+C');
         }
         process.exit(options.exitCode);
     }
-}    
+}
 
-r.start(bc, null,llrpClientM2mBridge, function(err){
-    var e = err;
-//    s.stop( function(err){
-//        e = err;
-//    });
+var context = {bc: bc, observationsCnfg: observationsCnfg,
+    thingInstance: llrpClientM2mBridge, logger: logger};
+r.start(context, function (err) {
+    if (err) {
+        logger.error("Exit with error: " + err.message);
+        exitHandler({cleanup: true, exit: true}, null);
+    }
 });

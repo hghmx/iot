@@ -18,13 +18,19 @@
 // * specific language governing permissions and limitations
 // * under the License.
 // *******************************************************************************/
+"use strict";
 var clone = require('clone');
 var hashMap = require('hashmap');
+var util = require('util');
 var epcEncodings = ["dod", "gdti", "giai", "gid", "grai", "gsrn", "raw", "sgln", "sgtin", "sscc"];
 var decodedParts = ['Filter', 'Partition', 'CompanyPrefix', 'ItemReference', 'SerialNumber', 
                     'SerialReference', 'LocationReference', 'Extension', 'AssetType',
                     'IndividualAssetReference', 'ServiceReference', 'DocumentType', 'ManagerNumber',
                     'ObjectClass', 'CAGEOrDODAAC'];
+var llrpPlaceHolders = ['antennaId','smoothResult', 'filter', 'partition', 'companyPrefix', 'itemReference', 'serialNumber', 
+                    'serialReference', 'locationReference', 'extension', 'assetType',
+                    'individualAssetReference', 'serviceReference', 'documentType', 'managerNumber',
+                    'objectClass', 'cAGEOrDODAAC'];                
 var epcObservations =  [
     {   "targetthings": "[]",
         "guestusers": [],
@@ -35,7 +41,6 @@ var epcObservations =  [
         "epcString": "",
         "serialNumber": "",
         "smoothingResult": "new",
-        "epcScheme": "",
         "assetType": "",
         "itemReference": "",
         "locationReference": "",
@@ -84,7 +89,6 @@ var epcObservations =  [
         "serialNumber": "",
         "creationDate": "2015-11-27T16:42:19.244Z",
         "smoothingResult": "new",
-        "epcScheme": "",
         "epcUri": "",
         "guesttenants": [],
         "itemReference": "",
@@ -102,7 +106,6 @@ var epcObservations =  [
         "epcString": "",
         "creationDate": "2015-11-27T17:35:39.770Z",
         "smoothingResult": "",
-        "epcScheme": "",
         "epcUri": "",
         "guesttenants": [],
         "producer": "",
@@ -119,7 +122,6 @@ var epcObservations =  [
         "epcString": "",
         "creationDate": "2015-11-28T07:16:02.643Z",
         "smoothingResult": "",
-        "epcScheme": "",
         "guesttenants": [],
         "producer": "",
         "tagEncoding": "",
@@ -133,6 +135,7 @@ var epcObservations =  [
         "serialReference": "",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/ssccEPC",
+        "epcString": "",
         "companyPrefix": "",
         "smoothingResult": "",
         "epcUri": "",
@@ -148,6 +151,7 @@ var epcObservations =  [
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/sglnEPC",
+        "epcString": "",
         "companyPrefix": "",
         "creationDate": "Tue Nov 24 22:23:20 UTC 2015",
         "smoothingResult": "",
@@ -165,6 +169,7 @@ var epcObservations =  [
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/graiEPC",
+        "epcString": "",
         "serialNumber": "",
         "companyPrefix": "",
         "creationDate": "Tue Nov 24 22:22:14 UTC 2015",
@@ -184,6 +189,7 @@ var epcObservations =  [
         "individualAssetReference": "",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/giaiEPC",
+        "epcString": "",
         "companyPrefix": "",
         "creationDate": "Tue Nov 24 22:19:57 UTC 2015",
         "smoothingResult": "",
@@ -201,6 +207,7 @@ var epcObservations =  [
         "documentType": "",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/gdtiEPC",
+        "epcString": "",
         "companyPrefix": "",
         "creationDate": "Tue Nov 24 22:18:43 UTC 2015",
         "smoothingResult": "",
@@ -218,6 +225,7 @@ var epcObservations =  [
         "serialReference": "",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/gsrnEPC",
+        "epcString": "",
         "companyPrefix": "",
         "creationDate": "Tue Nov 24 22:17:14 UTC 2015",
         "smoothingResult": "",
@@ -235,6 +243,7 @@ var epcObservations =  [
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/gidEPC",
+        "epcString": "",
         "serialNumber": "",
         "objectClass": "",
         "creationDate": "Tue Nov 24 22:15:57 UTC 2015",
@@ -246,13 +255,13 @@ var epcObservations =  [
         "tagEncoding": "gid",
         "occurrencetime": "Tue Nov 24 22:15:57 UTC 2015"
     },
-    {
-        "topic": "",
+    {"topic": "",
         "groupReportResult": "",
         "guestusers": [],
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/dodEPC",
+        "epcString": "",
         "serialNumber": "Product serial number",
         "creationDate": "Sat Nov 28 21:38:23 UTC 2015",
         "smoothingResult": "",
@@ -268,6 +277,7 @@ var epcObservations =  [
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/llrpError",
+        "epcString": "",
         "code": 0,
         "message": "",
         "creationDate": "Sun Nov 29 16:38:51 UTC 2015",
@@ -281,118 +291,186 @@ var epcObservations =  [
 String.prototype.lowerFirstLetter = function() {
     return this.charAt(0).toLowerCase() + this.slice(1);
 };
-                
+
 function LLRPObservations(location,
                           observationsCnfg, 
                           decodeEPCValues, 
                           useSingleDecode96EPC,
                           groupReport,
-                          antennas) {
-    this.location = location;
-    this.observationsCnfg = observationsCnfg;
-    this.decodeEPCValues = decodeEPCValues;
-    this.useSingleDecode96EPC = useSingleDecode96EPC;
-    this.groupReport = groupReport;
-    this.antennas = antennas;
-    this.groupAntennas = [];
-    this.antennas.forEach(function (antenna){
+                          antennas,
+                          logger) {
+    var self = this;
+    self.location = location;
+    self.observationsCnfg = observationsCnfg;
+    self.decodeEPCValues = decodeEPCValues;
+    self.useSingleDecode96EPC = useSingleDecode96EPC;
+    self.groupReport = groupReport;
+    self.antennas = antennas;
+    self.groupAntennas = [];
+    self.antennas.forEach(function (antenna){
         if(antenna.groupReport){
-            this.groupAntennas.push(antenna.id);
+            self.groupAntennas.push(antenna.id);
         }
     });
-    this.observsGroups  = new hashMap();
-};
+    self.observsGroups  = new hashMap();
+    self.logger = logger;
+}
 
-LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
+LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {   
     var self = this;
-    var epcObsrv;
     var observationName;
     var observationGroups = [];
     tagsInfo.forEach(function (tagToSend) {
-        if( self.useSingleDecode96EPC &&  tagToSend.name in epcEncodings){
+        var isEpcEncodings = epcEncodings.indexOf(tagToSend.name )!== -1;
+        if( self.useSingleDecode96EPC &&  isEpcEncodings){
             observationName = 'decode96EPC';
         }else{
             observationName = tagToSend.name + 'EPC';
         }
         
-        epcObsrv = self.getObsrvInstance(observationName);
+        var epcObsrv = self.getObsrvInstance(observationName);
         
         //Specific epcData properties
         if(tagToSend.name ==='data') {
-            epcObsrv.dataSize = tagToSend.dataSize;
-            epcObsrv.binaryData = tagToSend.binaryData;     
+            epcObsrv.dataSize = tagToSend.EPCData.dataSize;
+            epcObsrv.binaryData = tagToSend.EPCData.binaryData;     
         }
-        
+        var ph = {'antennaId': tagToSend.antenna};
         //common EPCDecode properties
-        if(tagToSend.name in epcEncodings){
+        if(isEpcEncodings){
             epcObsrv.epcUri = tagToSend.EPC96['epcUri'];
-            self.assingEPCDecodeParts(epcObsrv,tagToSend.EPC96.parts );
+            self.assingEPCDecodeParts(epcObsrv,tagToSend.EPC96.parts, ph );
+            ph['epcUri'] = tagToSend.EPC96['epcUri'];
         }
         //Common properties
-        if (this.location) {
-            epcObsrv.location = this.location;
+        if (self.location) {
+            epcObsrv.location = self.location;
         }
+        
         if(tagToSend.smoothingResult){
             epcObsrv.smoothingResult = tagToSend.smoothingResult;
+            ph['smoothingResult'] = tagToSend.smoothingResult;
         }
         epcObsrv.epcString = tagToSend.tag;
         epcObsrv.tagEncoding = tagToSend.name;
 
         //Configurable properties
-        epcObsrv.targetthings = this.observationsCnfg.get(observationName).thingsconfig;
-        epcObsrv.producer = this.observationsCnfg.get(observationName).producerschema;
-        epcObsrv.topic = this.observationsCnfg.get(observationName).topicschema;
-        epcObsrv.occurrencetime = new Date().toISOString();
+        if(self.observationsCnfg && self.observationsCnfg.has(observationName)){
+            epcObsrv.targetthings = self.fillPlaceholder(self.observationsCnfg.get(observationName).thingsconfig, ph);
+            epcObsrv.producer = self.fillPlaceholder(self.observationsCnfg.get(observationName).producerschema, ph);
+            epcObsrv.topic = self.fillPlaceholder(self.observationsCnfg.get(observationName).topicschema, ph);
+            epcObsrv.occurrencetime = new Date().toISOString();
+            var key;
+            if(self.groupAntennas.indexOf(tagToSend.antenna) !== -1){
+                key =  tagToSend.antenna + '/' + tagToSend.name;
+            }else if(self.groupReport){
+                key = tagToSend.name;
+            }else{
+                key = '_all_';
+            }
 
-        
-        
-        
-        var key;
-        if(tagsInfo.antenna in this.groupAntennas){
-            key =  tagsInfo.antenna + '/' + tagToSend.name;
-        }else if(this.groupReport){
-            key = tagToSend.name;
-        }else{
-            key = '_all_';
-        }
-        if( !this.observsGroups.has(key)){
-            this.observsGroups.set( key , [epcObsrv]);
-        }else{
-            this.observsGroups.get(key).push(epcObsrv);
-        }
+            if( !self.observsGroups.has(key)){
+                self.observsGroups.set( key , [epcObsrv]);
+            }else{
+                self.observsGroups.get(key).push(epcObsrv);
+            }            
+        }else if(!self.observationsCnfg.has(observationName)){
+            //stop
+            self.logger.error(util.format('Observation type %s has not production configuration \n json: %s ',
+                    observationName, JSON.stringify(epcObsrv, undefined, 4) ) );
+        }        
     });
-    if(!this.groupReport && this.groupAntennas.length ===0 ){
-        observationGroups.push(this.observsGroups.get( '_all_'));
-    }else{
-        this.observsGroups.forEach(function( tagsGroup){
-            tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
-            observationGroups.push(tagsGroup[0]); 
-        });
+    
+    if (self.observsGroups.count() > 0) {
+        if (!self.groupReport && self.groupAntennas.length === 0) {
+            observationGroups = observationGroups.concat(self.observsGroups.get('_all_'));
+        } else if (self.groupReport) {
+            self.observsGroups.forEach(function (tagsGroup) {
+                tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
+                observationGroups.push(tagsGroup[0]);
+            });
+        } else if (self.groupAntennas.length > 0) {
+            self.observsGroups.forEach(function (tagsGroup, key) {
+                var antennaKey = key.split('/')[0];
+                if (self.groupAntennas.indexOf(parseInt(antennaKey)) !== -1) {
+                    tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
+                    observationGroups.push(tagsGroup[0]);
+                } else {
+                    observationGroups = observationGroups.concat(tagsGroup);
+                }
+            });
+        }
+        self.observsGroups.clear();
     }
-    this.observsGroups.clear();
     return observationGroups;
 };
 
 LLRPObservations.prototype.getObsrvInstance = function (obsrvName) {
     var self = this;
+    var cloneObsrv = undefined;
     epcObservations.find(function( epcObserv){
         if(self.getResourceName( epcObserv['@type']) === obsrvName){
-            return clone(epcObserv);
+            cloneObsrv = clone(epcObserv);
+            return true;
         }
     });
+    return cloneObsrv;
 };
 
 LLRPObservations.prototype.getResourceName = function (typeurl) {
     return (typeurl) ? typeurl.substr(typeurl.lastIndexOf("/") + 1) : undefined;
 };
 
-LLRPObservations.prototype.assingEPCDecodeParts = function (observation, parts) {
-    for(var propertyName in decodedParts){
+LLRPObservations.prototype.assingEPCDecodeParts = function (observation, parts, ph) {
+    decodedParts.forEach(function(propertyName){
         var obsrvPN = propertyName.lowerFirstLetter();
-        if(parts[propertyName] && observation[obsrvPN]){
+        if(parts[propertyName]!== undefined && observation.hasOwnProperty(obsrvPN)){
             observation[obsrvPN] = parts[propertyName];
-        }          
-    }
+            ph[obsrvPN] = parts[propertyName];
+        }                  
+    });    
 };
-module.exports.LLRPObservations = LLRPObservations;
+LLRPObservations.prototype.fillPlaceholder = function (phString, placeHolders ) {
+    
+    var re = new RegExp( "\\#{(\\b(|" + Object.getOwnPropertyNames(placeHolders).join('|')  + ")\\b)\\}", 'g' );
+    
+    var replaceClientPlaceholders = (function ()
+    {
+        var replacer = function (context)
+        {
+            return function (s, name)
+            {
+                return context[name];
+            };
+        };
 
+        return function (input, context)
+        {
+            //return input.replace(/\#{(\b(|antennaId|smoothResult)\b)\}/g, replacer(context));
+            return input.replace(re, replacer(context));
+        };
+    })();
+
+    return replaceClientPlaceholders(phString, placeHolders);
+};
+
+LLRPObservations.prototype.getErrorObservations = function (error) {
+    var self = this;
+    var observationName = 'llrpError';
+    var llrpError = self.getObsrvInstance(observationName);
+    if (error.code) {
+        llrpError.code = error.code;
+    }
+    llrpError.message = error.message;
+    if (self.observationsCnfg && self.observationsCnfg.has(observationName)) {
+        llrpError.targetthings = self.observationsCnfg.get(observationName).thingsconfig;
+        llrpError.producer = self.observationsCnfg.get(observationName).producerschema;
+        llrpError.topic = self.observationsCnfg.get(observationName).topicschema;
+    }
+    llrpError.occurrencetime = new Date().toISOString();
+
+
+    return llrpError;
+};
+
+module.exports.LLRPObservations = LLRPObservations;

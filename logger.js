@@ -19,23 +19,33 @@
 // * under the License.
 // *******************************************************************************/
 "use strict";
-var cnfg = require('./config').config.bc;
 var winston = require('winston');
-if(!logger){
-    var logger = new (winston.Logger)({
-        transports: [
-            new (winston.transports.Console)({
-                colorize: ( typeof cnfg !== 'undefined' &&  cnfg )?cnfg.logger.colorize:true,
-                level :  ( typeof cnfg !== 'undefined' &&  cnfg )?cnfg.logger.level:'info'
-            })
-        ]
-    }); 
-
-    logger.on('error', 
-    function (err) { 
-        console.error(err);
-    });
+var logger = null;
+function initLogger() {
+    var cnfg = require('./config').config;
+    function setLogger() {
+        var theLogger = new (winston.Logger)({
+            transports: [
+                new (winston.transports.Console)({
+                    colorize: (typeof cnfg !== 'undefined' && cnfg) ? cnfg.bc.logger.colorize : true,
+                    level: (typeof cnfg !== 'undefined' && cnfg) ? cnfg.bc.logger.level : 'info'
+                })]
+        });
+        theLogger.on('error',
+            function (err) {
+                console.error(err);
+            });
+        return theLogger;
+    }
+    if (!cnfg.bc) {
+        cnfg.initSync();
+        return setLogger();
+    } else {
+        return setLogger();
+    }
 }
+
+logger = logger || initLogger();
 module.exports = {
-    logger : logger
+    logger: logger
 };

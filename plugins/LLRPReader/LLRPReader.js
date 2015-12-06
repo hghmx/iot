@@ -18,9 +18,12 @@
 // * specific language governing permissions and limitations
 // * under the License.
 // *******************************************************************************/
+"use strict";
 var fs = require("fs");
 var java = require("java");
-java.classpath.push("./ltkjava-1.0.0.7-with-dependencies.jar");
+var path=require("path");
+java.classpath.push(path.resolve(__dirname,"./ltkjava-1.0.0.7-with-dependencies.jar"));
+//java.classpath.push("./ltkjava-1.0.0.7-with-dependencies.jar");
 var messageC = require('./LLRPMessagesConstants.js');
 var ROSPEC_ID = 1;
 var net = require('net');
@@ -34,8 +37,7 @@ var async = require('async');
 var epc96Size = 24;
 var smoothNew = 'new';
 var smoothLost = 'lost';
-var llrpObservation =  ("./llrpObservation");
-var logger = require('./../logger').logger;
+var llrpObservations =  require("./LLRPObservations").LLRPObservations;
 
 String.prototype.padLeft = function (len, c) {
     var s = this, c = c || '0';
@@ -48,44 +50,73 @@ function LLRPReader() {
 
 };
 
-LLRPReader.prototype.getLLRPCmd = function (filename) {
-    var file = new File(filename);
-    var llrpMsg = java.callStaticMethodSync("org.llrp.ltk.util.Util", "loadXMLLLRPMessage", file);
-    return llrpMsg;
+LLRPReader.prototype.setLLRPCmds = function (llrpCommands) {
+    var self = this;
+    llrpCommands.forEach(function(cmd){
+        var file = new File(cmd.fileName);
+        self[cmd.pn] = java.callStaticMethodSync("org.llrp.ltk.util.Util", "loadXMLLLRPMessage", file);
+    });
 };
 
 LLRPReader.prototype.setCommands = function () {
-    this.getReaderCapability = this.getLLRPCmd("getReaderCapabilities.llrp");
-    this.keepAliveAck = this.getLLRPCmd("keepAliveAck.llrp");
-    this.getReaderConfig = this.getLLRPCmd("getReaderConfig.llrp");
-    this.stopRospec = this.getLLRPCmd("stopRospec.llrp");
-    this.setReaderConfig = this.getLLRPCmd("setReaderConfig.llrp");
-    //this.addRospec = this.getLLRPCmd("addRospec.llrp");
-    this.addRospec = this.getLLRPCmd("addRospecEmptyOld.llrp");
-    this.delRospec = this.getLLRPCmd("delRospec.llrp");
-    this.enableRospec = this.getLLRPCmd("enableRospec.llrp");
-    this.startRospec = this.getLLRPCmd("startRospec.llrp");
-    this.delAccessSpec = this.getLLRPCmd("delAccessSpec.llrp");
-    this.closeConnection = this.getLLRPCmd("closeConnection.llrp");
-    this.enableEventsAndReports = this.getLLRPCmd("enableEventsAndReports.llrp");
-};
+    var llrpCommands = [
+        {pn: 'getReaderCapability', fileName: path.resolve(__dirname,"./getReaderCapabilities.llrp")},
+        {pn: 'keepAliveAck', fileName: path.resolve(__dirname,"./keepAliveAck.llrp")},
+        {pn: 'getReaderConfig', fileName: path.resolve(__dirname,"./getReaderConfig.llrp")},
+        {pn: 'stopRospec', fileName: path.resolve(__dirname,"./stopRospec.llrp")},
+        {pn: 'setReaderConfig', fileName: path.resolve(__dirname,"./setReaderConfig.llrp")},
+        {pn: 'addRospec', fileName: path.resolve(__dirname,"./addRospecEmptyOld.llrp")},
+        {pn: 'delRospec', fileName: path.resolve(__dirname,"./delRospec.llrp")},
+        {pn: 'enableRospec', fileName: path.resolve(__dirname,"./enableRospec.llrp")},
+        {pn: 'startRospec', fileName: path.resolve(__dirname,"./startRospec.llrp")},
+        {pn: 'delAccessSpec', fileName: path.resolve(__dirname,"./delAccessSpec.llrp")},
+        {pn: 'closeConnection', fileName: path.resolve(__dirname,"./closeConnection.llrp")},
+        {pn: 'enableEventsAndReports', fileName: path.resolve(__dirname,"./enableEventsAndReports.llrp")}
+    ];
+    this.setLLRPCmds(llrpCommands);
+}; 
 
-LLRPReader.prototype.start = function (bc, observationsCnfg, thingInstance, complete) {
-    this.smoothing = thingInstance.smoothing;
-    this.decodeEPCValues = thingInstance.decodeEPCValues;
-    this.reportAmountForSmoothing = thingInstance.reportAmountForSmoothing;
-    this.useSingleDecode96EPC = thingInstance.useSingleDecode96EPC;
-    this.groupReport = thingInstance.groupReport;
-    this.antennas = JSON.parse( thingInstance.antennas);     
-    this.port = thingInstance.port;
-    this.ipaddress = thingInstance.ipaddress;
-    this.observationsCnfg = observationsCnfg;
-    this.location = bc.location.        
-    this.setCommands();
-    this.msgBuffers = new msgBuffers.MsgBuffers();
-    this.name = thingInstance._name;
-    this.urn = thingInstance["@id"];   
-    this.connectReader(complete);
+LLRPReader.prototype.start = function (context, complete) {
+    try{
+        if(!context.observationsCnfg){
+            complete(new Error('LLRPReader requires observation production configuration'));
+        }
+        if(!context.thingInstance){
+            complete(new Error('LLRPReader requires an LLRPReader type instance'));
+        }
+        this.smoothing = context.thingInstance.smoothing;
+        this.decodeEPCValues = context.thingInstance.decodeEPCValues;
+        this.reportAmountForSmoothing = context.thingInstance.reportAmountForSmoothing;
+        this.useSingleDecode96EPC = context.thingInstance.useSingleDecode96EPC;
+        this.groupReport = context.thingInstance.groupReport;
+        
+        this.port = context.thingInstance.port;
+        this.ipaddress = context.thingInstance.ipaddress;
+        this.observationsCnfg = context.observationsCnfg;
+        this.location = context.bc.location;        
+        this.setCommands();
+        this.msgBuffers = new msgBuffers.MsgBuffers();
+        this.name = context.thingInstance._name;
+        this.urn = context.thingInstance["@id"]; 
+        if(context.logger){
+            this.logger = context.logger;
+        }
+
+        if(context.thingInstance.antennas){
+            try{
+                this.antennas = JSON.parse( context.thingInstance.antennas); 
+            }catch(e){
+                this.antennas =[];
+                 if(this.logger){ this.logger.error(util.format('LLRP reader %s wrong json antenna configuration', this.name));};
+            }
+        }else{            
+            this.antennas =[];
+            if(this.logger){ this.logger.info(util.format('LLRP reader %s running without antenna configuration', this.name));};
+        }
+        this.connectReader(complete);
+    }catch(err){
+        complete(err);
+    }
 };
 
 LLRPReader.prototype.connectReader = function ( complete) {
@@ -93,21 +124,23 @@ LLRPReader.prototype.connectReader = function ( complete) {
         var self = this;
         
         self.configReaderSet = false;
+        self.lastReportNotification = 'none';
         
         self.isConnected = false;
-        self.llrpObservs = new llrpObservation.LLRPObservations(self.location,
-                                                                self.observationsCnfg,
-                                                                self.decodeEPCValues, 
-                                                                self.useSingleDecode96EPC, 
-                                                                self.groupReport,
-                                                                self.antennas);
+        self.llrpObservs = new llrpObservations(self.location,
+                                self.observationsCnfg,
+                                self.decodeEPCValues, 
+                                self.useSingleDecode96EPC, 
+                                self.groupReport,
+                                self.antennas,
+                                self.logger);
         self._complete = complete;
         self.socket = new net.Socket();
         // timeout after 60 seconds.
         self.socket.setTimeout(60000, function () {
             //send llrperror
-            msg = util.format("LLRP reader %s timeout", self.name );
-            logger.error(msg);
+            var msg = util.format("LLRP reader %s timeout", self.name );
+            if(self.logger){self.logger.error(msg);};
             self.sendError(new Error(msg));
         });
         // connect with reader
@@ -119,17 +152,17 @@ LLRPReader.prototype.connectReader = function ( complete) {
         //the reader or client has ended the connection.
         self.client.on('end', function () {
             //send llrpError
-            msg = util.format("LLRP reader %s end connection", self.name );
-            logger.error(msg);            
+            var msg = util.format("LLRP reader %s end connection", self.name );
+            if(self.logger){self.logger.error(msg);}            
             self.sendError(new Error(msg));
         });
         //cannot connect to the reader other than a timeout.
         self.client.on('error', function (err) {
             //send m2mError
-            complete(err);
+            //complete(err);
+            self.logger.error(err.message);
         });
     } catch (e) {
-        throw(e);
         //send m2mError
         complete(e);
     }
@@ -159,11 +192,27 @@ LLRPReader.prototype.startEventCycle = function (data) {
                         if (llrpMessage.getReaderEventNotificationDataSync().getConnectionAttemptEventSync().getStatusSync().toStringSync()
                             === 'Success') {
                             self.isConnected = true;
-                            logger.info(util.format('LLRP reader % connected', self.name)); 
+                            if(self.logger){self.logger.info(util.format('LLRP reader %s connected', self.name));}; 
                             self.sendMessage('GET_READER_CAPABILITIES', self.getReaderCapability);
+                            self._complete(null);
                         } else {
                             self.isConnected = false;
-                            self._complete(new Error(util.format("Error connection to reader ip %s port %d", "ip", "port")));
+                            self._complete(new Error(util.format("Error connection to reader ip %s port %d", self.ipaddress, self.port)));
+                        }
+                    }else{
+                        
+                        if(llrpMessage.getReaderEventNotificationDataSync().getAISpecEventSync()){
+                            self.lastReportNotification  = llrpMessage.getReaderEventNotificationDataSync().getAISpecEventSync().getEventTypeSync().toStringSync();                            
+                        }
+                        else if(llrpMessage.getReaderEventNotificationDataSync().getROSpecEventSync()){
+                            if(self.lastReportNotification === 'End_Of_AISpec'){
+                                if(self.smoothing){
+                                    self.doSmoothing();
+                                    self.logger.debug("Run smoothing no report received");
+                                }                                
+                            }else{
+                                self.logger.debug("Report end with ..." +  self.lastReportNotification)
+                            }
                         }
                     }
                     break;
@@ -184,25 +233,28 @@ LLRPReader.prototype.startEventCycle = function (data) {
                     break;
                     //4,7     
                 case messageC.DELETE_ROSPEC_RESPONSE:
-                    if (!self.configReaderSet) {
-                        self.sendMessage('DELETE_ACCESSSPEC', self.delAccessSpec);
-                    } else {
-                        self.sendMessage('ADD_ROSPEC', self.addRospec);
-                    }
+//                    if (!self.configReaderSet) {
+//                        self.sendMessage('DELETE_ACCESSSPEC', self.delAccessSpec);
+//                    } else {
+//                        self.sendMessage('ADD_ROSPEC', self.addRospec);
+//                    }
+                      self.sendMessage('DELETE_ACCESSSPEC', self.delAccessSpec);  
                     break;
                     //5
                 case messageC.DELETE_ACCESSSPEC_RESPONSE:
-                    if (self.readerCapabilities.getGeneralDeviceCapabilitiesSync().getCanSetAntennaPropertiesSync().intValueSync() === 1) {
-                        self.sendMessage('SET_READER_CONFIG', self.setReaderConfig);
-                    } else {
-                        self.configReaderSet = true;
-                        self.sendMessage('ADD_ROSPEC', self.addRospec);
-                    }
+//                    if (self.readerCapabilities.getGeneralDeviceCapabilitiesSync().getCanSetAntennaPropertiesSync().intValueSync() === 1) {
+//                        self.sendMessage('SET_READER_CONFIG', self.setReaderConfig);
+//                    } else {
+//                        self.configReaderSet = true;
+//                        self.sendMessage('ADD_ROSPEC', self.addRospec);
+//                    }
+                      self.sendMessage('SET_READER_CONFIG', self.setReaderConfig);
                     break;
                     //6
                 case messageC.SET_READER_CONFIG_RESPONSE:
                     self.configReaderSet = true;
-                    self.sendMessage('DELETE_ROSPEC', self.delRospec);
+                    //self.sendMessage('DELETE_ROSPEC', self.delRospec);
+                    self.sendMessage('ADD_ROSPEC', self.addRospec);
                     break;
                     //8
                 case messageC.ADD_ROSPEC_RESPONSE:
@@ -215,11 +267,11 @@ LLRPReader.prototype.startEventCycle = function (data) {
                     //10
                 case messageC.START_ROSPEC_RESPONSE:
                     self.sendMessage('ENABLE_EVENTS_AND_REPORTS', self.enableEventsAndReports);
-                    self._complete(null);
                     break;
                     //n
                 case messageC.RO_ACCESS_REPORT:
                     var accessReport = java.newInstanceSync('org.llrp.ltk.generated.messages.RO_ACCESS_REPORT', byteArray);
+                    self.lastReportNotification = 'RO_ACCESS_REPORT';
                     self.eventCycle(accessReport);
                     break;
                 case messageC.CLOSE_CONNECTION_RESPONSE:
@@ -281,6 +333,7 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
                         if(!err){
                             self.updateTagInfo(tagUrn, ts, tagInfo);
                             self.addTagInfo(tagUrn, tagInfo);
+                            self.logger.debug(util.format("NEW TAG----(EPC_96)------> URN: %s Name: %s", tagUrn, tagInfo.name) );
                             complete(null);
                         }
                     });
@@ -289,21 +342,24 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
                 tagInfo.EPC96['tag'] = tag;
                 self.updateTagInfo(tagUrn, ts, tagInfo);
                 self.addTagInfo(tagUrn, tagInfo);
+                self.logger.debug(util.format("NEW TAG---(encoded96)-------> URN: %s Name: %s", tagUrn, tagInfo.name) );
                 complete(null);
             }
+            
         } else if (ts.getEPCParameterSync().getNameSync() === 'EPCData') {
             tagInfo['EPCData'] = {};
             tagInfo['name'] = 'data';
             tagInfo.EPCData['tag'] = tag;
-            tagInfo.EPCData['size'] = ts.getEPCParameterSync().getEPCSync().sizeSync();
+            tagInfo.EPCData['dataSize'] = ts.getEPCParameterSync().getEPCSync().sizeSync();
             tagInfo.EPCData['binaryData'] = ts.getEPCParameterSync().getEPCSync().encodeBinarySync().toStringSync();
             self.updateTagInfo(tagUrn, ts, tagInfo);
             self.addTagInfo(tagUrn, tagInfo);
+            self.logger.debug(util.format("NEW TAG----(EPCData)------> URN: %s Name: %s", tagUrn, tagInfo.name) );
             complete(null);
         }
-
     } else {
         tagInfo = self.tagEvents.get(tagUrn);
+        self.logger.debug(util.format("SEEN AGAIN----------> URN: %s Name: %s", tagUrn, tagInfo.name) );
         self.updateTagInfo(tagUrn, ts, tagInfo);
         complete(null);
     }
@@ -325,9 +381,22 @@ LLRPReader.prototype.updateTagInfo = function (tagUrn, ts, tagInfo) {
     tagInfo['PeakRSSI'] = ts.getPeakRSSISync().getPeakRSSISync().toIntegerSync();
     tagInfo['seenCount'] = ts.getTagSeenCountSync().getTagCountSync().toIntegerSync();
     //no lost
-    if (self.smoothing && self.lostTags.indexOf(tagUrn) !== -1) {
-        self.lostTags.splice(self.lostTags.indexOf(tagUrn), 1);
+    if (self.smoothing ) {
         tagInfo['reportAmountForSmoothing'] = 0;
+    }
+};
+
+LLRPReader.prototype.logTags = function (comment, tags, smoothStatus) {
+    var self = this;
+    if(self.logger && self.logger.transports.console.level === "debug"){
+        self.logger.debug(util.format("---------------------%s--------------", comment));
+        tags.forEach(function (ts) {
+            if(!smoothStatus){
+                self.logger.debug(util.format("Tag data %s \n json%s", ts.tag, JSON.stringify(ts, undefined, 4)));
+            }else if(ts.smoothingResult === smoothStatus){
+                 self.logger.debug(util.format("Tag data %s \n json%s", ts.tag, JSON.stringify(ts, undefined, 4)));
+            }
+        });        
     }
 };
 
@@ -335,90 +404,107 @@ LLRPReader.prototype.eventCycle = function (accessReport) {
     var self = this;
     if (self.smoothing) {
         self.newTags = [];
-        self.lostTags = self.tagEvents.keys();
+        self.lostTags = [];
     }
     try {
-        async.each(accessReport.getTagReportDataListSync().toArraySync(),
-            LLRPReader.prototype.getTagIngo.bind(self),
-            function (err) {
-                if (err) {
-                    console.error(err);
-                } else {
-                    self.applySmooth();
-                    if (!self.smoothing) {
-                        //Send tags event
-                        console.log('-------------------------------------------------------------------------------------------------');
-                        self.tagEvents.forEach(function (ts) {
-                            console.log(util.format("Tag data %s \n json%s", ts.tag, JSON.stringify(ts, undefined, 4)));
-                        });
-                        self.sendObservatios(self.tagEvents.values());
+        var reportTags = accessReport.getTagReportDataListSync().toArraySync();
+        self.logger.debug(util.format("EVENT CYCLE TOTAL----------> %d", reportTags.length) );
+        if (reportTags.length === 0) {
+            if(self.smoothing){
+                self.doSmoothing();
+            }
+        } else {
+            async.each(reportTags,
+                LLRPReader.prototype.getTagIngo.bind(self),
+                function (err) {
+                    if (err) {
+                        if (self.logger) {
+                            self.error(err);
+                        };
                     } else {
-                        var smoothTags = [];
-                        //Send new event
-                        console.log('--------------------------------NEW---------------------------------------------');
-                        self.newTags.forEach(function (tagUrn) {
-                            var tagNew = self.tagEvents.get(tagUrn);
-                            tagNew['smoothingResult'] = smoothNew;
-                            smoothTags.push(tagNew);
-                            console.log(util.format("Tag urn %s \n json%s", tagUrn, JSON.stringify(tagNew, undefined, 4)));
-                        });
-                        console.log('--------------------------------LOST---------------------------------------------');
-                        self.lostTags.forEach(function (tagUrn) {
-                            var tagLost = self.tagEvents.get(tagUrn);
-                            tagLost['smoothingResult'] = smoothLost;
-                            smoothTags.push(tagLost);
-                            console.log(util.format("Tag urn %s \n json%s", tagUrn, JSON.stringify(tagLost, undefined, 4)));
-                        });
-                        self.sendObservatios(self.tagEvents.values());
+                        if (!self.smoothing) {
+                            self.logTags("All no smoothing", self.tagEvents.values());
+                            self.buildAndSend(self.tagEvents.values());
+                            self.tagEvents.clear();
+                        } else {
+                            self.doSmoothing();
+                        }
                     }
-                    //Delete lost
-                    if (self.smoothing) {
-                        self.lostTags.forEach(function (tagUrn) {
-                            self.tagEvents.remove(tagUrn);
-                        });
-                    } else {
-                        self.tagEvents.clear();
-                    }
-                }
-            });
+                });
+        }
     } catch (e) {
         console.error(e);
     }
 };
 
-LLRPReader.prototype.applySmooth = function () {
+LLRPReader.prototype.doSmoothing = function () {
     var self = this;
-    var nonLost = [];
-    for(var i =0; i <  self.lostTags.length; i++ ){
-        var lostUrn = self.lostTags[i];
-        var tagSmooth = self.tagEvents.get(lostUrn);
-        if(tagSmooth.reportAmountForSmoothing < this.reportAmountForSmoothing){
-            tagSmooth.reportAmountForSmoothing += 1;
-            nonLost.push(i);
+    if(!self.newTags || !self.lostTags) return;
+    if(self.tagEvents.count === 0 ) return;
+    self.applySmooth();
+    var smoothTags = [];
+    //Send new event
+    self.newTags.forEach(function (tagUrn) {
+        var tagNew = self.tagEvents.get(tagUrn);
+        tagNew['smoothingResult'] = smoothNew;
+        smoothTags.push(tagNew);
+    });
+    self.logTags("New", smoothTags, smoothNew);
+
+    self.lostTags.forEach(function (tagUrn) {
+        var tagLost = self.tagEvents.get(tagUrn);
+        tagLost['smoothingResult'] = smoothLost;
+        smoothTags.push(tagLost);
+    });
+    self.logTags("Lost", smoothTags, smoothLost);
+    self.buildAndSend(smoothTags);
+    self.lostTags.forEach(function (tagUrn) {
+        self.tagEvents.remove(tagUrn);
+    });
+    self.tagEvents.forEach(function (tagInfo) {
+        if (tagInfo.reportAmountForSmoothing === 0) {
+            tagInfo.reportAmountForSmoothing = 1;
         }
-    };
-    //Remove from lost
-    for(var index in nonLost){
-        self.lostTags.splice(index, 1);
-    }    
+    });
+    //clean
+    self.lostTags = [];
+    self.newTags = [];
 };
 
-LLRPReader.prototype.sendObservatios = function (tagsInfo) {
-    var obsrvsGroups = this.llrpObservs.getEPCObservations(tagsInfo);
-    obsrvsGroups.forEach(function( group){
-        group.forEach(function( obsrv){
-            this.sendObservation(obsrv);
-        });
+LLRPReader.prototype.applySmooth = function () {
+    var self = this;
+    self.tagEvents.forEach(function(tag){
+        if(tag.reportAmountForSmoothing > 0){
+            tag.reportAmountForSmoothing += 1;
+        }
+        if(tag.reportAmountForSmoothing >= self.reportAmountForSmoothing){
+            self.lostTags.push(tag.tagUrn);
+        }
+    }); 
+};
+
+LLRPReader.prototype.buildAndSend = function (tagsInfo) {
+    var observations = this.llrpObservs.getEPCObservations(tagsInfo);
+    var self = this;
+    self.logger.debug("---------------------Sending observations-------------------");
+    observations.forEach(function( obsrv){
+            obsrv.guesttenants = ["m2mcreator"];
+            if(self.sendObservation){
+                self.sendObservation(obsrv);
+            }else{
+                self.logger.debug(util.format("Observation tag data %s \n json%s", obsrv.epcString, JSON.stringify(obsrv, undefined, 4)));
+            }
     });
 };
 
 LLRPReader.prototype.sendError = function (error) {
-    var llrpError = this.llrpObservs.getEPCObservations('llrpError');
-    if(error.code){
-        llrpError.code = error.code;
+    var llrpError = this.llrpObservs.getErrorObservations(error);
+    if(this.sendObservation){
+        llrpError.guesttenants = ["m2mcreator"];
+        this.sendObservation(llrpError);
+    }else{
+        this.logger.debug(util.format("Error observation data \n json: %s", JSON.stringify(llrpError, undefined, 4)));
     }
-    llrpError.message = error.message;
-    this.sendObservation(llrpError);
 };
 
 LLRPReader.prototype.stop = function (complete) {

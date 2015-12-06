@@ -68,7 +68,7 @@
   </llrp:AccessReportSpec>
   <llrp:KeepaliveSpec>
     <llrp:KeepaliveTriggerType>Periodic</llrp:KeepaliveTriggerType>
-    <llrp:PeriodicTriggerValue>5000</llrp:PeriodicTriggerValue>
+    <llrp:PeriodicTriggerValue>8000</llrp:PeriodicTriggerValue>
   </llrp:KeepaliveSpec>
   <llrp:EventsAndReports>
     <llrp:HoldEventsAndReportsUponReconnect>1</llrp:HoldEventsAndReportsUponReconnect>

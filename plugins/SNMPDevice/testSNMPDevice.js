@@ -18,6 +18,18 @@
 // * specific language governing permissions and limitations
 // * under the License.
 // *******************************************************************************/
+var logger = new (winston.Logger)({
+     transports: [
+         new (winston.transports.Console)({
+     colorize: true,
+         level: 'info'
+         })]
+         });
+         logger.on('error',
+             function (err) {
+             console.error(err);
+             });
+
 var snmpDevice = require('./SNMPDevice');
 var deviceInst = {
     "setOIDs": "[{\"oid\":\".1.3.6.1.2.1.1.6.0\", \"type\":\"OctetString\", \"value\":\"Irvine CA\"}]",

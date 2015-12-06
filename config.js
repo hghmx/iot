@@ -18,7 +18,6 @@
 // * specific language governing permissions and limitations
 // * under the License.
 // *******************************************************************************/
-
 "use strict";
 var fs = require('fs');
 var configFile ='./bridgeConfig.json';
@@ -68,6 +67,19 @@ Config.prototype.init = function ( complete ) {
         }
     });
 };
+
+Config.prototype.initSync = function ( ) {
+    var _self = this;
+    this.bc = null;   
+    var data = fs.readFileSync(configFile);
+    _self.bc = JSON.parse(data.toString());
+    if(!_self.bc.description){
+        _self.bc.description = "AMTech M2M Bridge";
+    }
+    _self.validateDapConfig();
+};
+
+
 singleton = singleton || new Config();
 module.exports = {
     config : singleton,

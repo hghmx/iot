@@ -18,6 +18,7 @@
 // * specific language governing permissions and limitations
 // * under the License.
 // *******************************************************************************/
+"use strict";
 var slice = require('sliced');
 function MsgBuffers() {
     this.pending = undefined;

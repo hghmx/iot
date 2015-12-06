@@ -83,14 +83,13 @@ Bridge.prototype.init = function (complete) {
 };
 
 Bridge.prototype.getObservsConfiguration = function (complete) {
-    logger.debug("Getting observers configuration");
+    logger.debug("Getting observations production configuration");
     this.observs.getConfiguration(complete);
 };
 
 Bridge.prototype.initDispatcher = function (complete) {
     try{
-        this.observs.dispatch();
-        complete(null, "Observations dispatcher initialized");
+        this.observs.dispatch(complete);
     }catch(e){
         complete(e);
     }    
@@ -148,6 +147,9 @@ Bridge.prototype.run = function () {
 
 Bridge.prototype.stop = function () {
    this.plugs.stopPlugIns(function (err) {
+            if(err) throw err;
+        });
+   this.observs.stopDispatch(function (err) {
             if(err) throw err;
         });
 };

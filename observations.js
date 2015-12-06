@@ -19,10 +19,9 @@
 // * under the License.
 // *******************************************************************************/
 "use strict";
-var tinq = require('tinq');
-var client = tinq('./data');
-var queueObservations = "observations";
-var jobSend = "send";
+var levelup = require('levelup', {keyEncoding:'json',valueEncoding: 'json'});
+var uuid = require('uuid');
+
 var async = require('async');
 var dapClient = require('./dapClient').DapClient;
 var logger = require('./logger').logger;
@@ -53,7 +52,7 @@ Observations.prototype.getConfiguration = function (complete) {
                     for (var i = 0; i < pluginsType.length; i++) {
                         if (pluginsType[i].instances.values().length === 0) {
                             complete(new Error(util.format('The M2MBridge with user id %s has no instances for plugin type %s'
-                                    , _self.bc.dap.userId, _self.getResourceName(pluginsType[i].config.thingtype))));
+                                    , _self.bc.dap.userId, _self.getResourceName(pluginsType[i].id))));
                         }
                     }
                     _self.typesConfiguration = config;
@@ -64,63 +63,128 @@ Observations.prototype.getConfiguration = function (complete) {
     });
 };
 
-Observations.prototype.dispatch = function () {
-    this.worker = client.worker([queueObservations]);
-    this.worker.register({
-        send: Observations.prototype.sendJob.bind(this)});
-    this.worker.on('error', Observations.prototype.errorOnWorker.bind(this));
-    this.worker.on('failed', Observations.prototype.errorOnWorker.bind(this));
-    this.worker.start();
-    return true;
+Observations.prototype.stopDispatch = function (complete) { 
+    this.qObservations.close(function(err){
+        complete(err);
+    });
 };
 
-Observations.prototype.sendJob = function (params, callback) {
+Observations.prototype.dispatch = function (complete) {   
     var self = this;
+    levelup('./data/observation.db', {keyEncoding:'json'}, function (err, db) {
+      if (err){
+          complete(err);
+      }else{
+        self.qObservations = db;  
+        self.qObservations.on('open', Observations.prototype.sendJobsPending.bind(self));
+        self.qObservations.on('put', Observations.prototype.sendJob.bind(self));
+        complete(null, "Observations dispatcher initialized");
+      }
+    });    
+};
+
+Observations.prototype.sendJobsPending = function () {
+    var self = this;
+    self.qObservations.createReadStream({keyEncoding:'json',valueEncoding: 'json'})
+        .on('data', function (data) {            
+            self.sendJob(data.key, data.value, function(err){
+                if(err){
+                     logger.error(err);
+                }else{
+                    // logger.debug(util.format("Resending pending observations amount %d", data.length));
+                    logger.debug(util.format("Resending pending observations amount job id %s \n json: %s", data.key, 
+                    JSON.stringify(data.value, undefined, 4)));
+                }
+            });
+        })
+        .on('error', function (err) {
+            logger.error(err);
+        })
+        .on('end', function () {
+            logger.info('End sending pending observations');
+        });
+};
+
+Observations.prototype.sendJob = function (key, value, callback) {
+    var self = this;
+    var hasCallback = typeof(callback) === 'function';
     try {
         if (self.reconnectInterval) {
             clearInterval(self.reconnectInterval);
         }
+        
         async.retry(
-                {times: this.bc.networkFailed.retries, interval: this.bc.networkFailed.failedWait},
-        async.apply(dapClient.prototype.sendObservation.bind(this.dapClient), params),
-                function (err) {
-                    if (err) {
-                        logger.error(util.format("Error %s sending observation type %s", err.message, params['@type']));
-                        if (err instanceof Error && err.code && err.code === 403) {
-                            callback();
-                        } else {
-                            self.reconnectInterval = setInterval(function () {
-                                self.sendJob(params, callback);
-                            },
-                                    self.bc.networkFailed.reconnectWait);
-                        }
+            {times: this.bc.networkFailed.retries, interval: this.bc.networkFailed.failedWait},
+        async.apply(dapClient.prototype.sendObservation.bind(this.dapClient), value),
+            function (err) {
+                if (err) {
+                    logger.error(util.format("Error %s sending observation type %s", err.message, value['@type']));
+                    if (err instanceof Error && err.code && err.code === 403) {
+                        logger.error('sent observation: ' + err.message);
+                        if(hasCallback) callback(err);
                     } else {
-                        logger.debug('sent observation: ' + params['@type']);
-                        callback();
+                        logger.debug(util.format("Rescheduling resending observations to %d", self.bc.networkFailed.reconnectWait));
+                        self.reconnectInterval = setInterval(function () {
+                            //self.sendJob(value, callback);
+                            self.sendJobsPending();
+                        },
+                            self.bc.networkFailed.reconnectWait);
                     }
-                });
+                } else {
+                    logger.debug('sent observation: ' + value['@type']);
+
+                    self.qObservations.del(key, function (err) {
+                        if (err) {
+                            if(hasCallback) callback(err);
+                        } else {
+                            logger.debug(util.format("Completed and deleted job id %s observation type: %s", key, value['@type']));
+                            if(hasCallback) callback(null);
+                        }
+                    });
+                }
+            });
     } catch (err) {
         callback(err);
     }
-};
 
-Observations.prototype.errorOnWorker = function (error) {
-    logger.error(error);
+    /*
+     try {
+     if (self.reconnectInterval) {
+     clearInterval(self.reconnectInterval);
+     }
+     async.retry(
+     {times: this.bc.networkFailed.retries, interval: this.bc.networkFailed.failedWait},
+     async.apply(dapClient.prototype.sendObservation.bind(this.dapClient), params),
+     function (err) {
+     if (err) {
+     logger.error(util.format("Error %s sending observation type %s", err.message, params['@type']));
+     if (err instanceof Error && err.code && err.code === 403) {
+     callback(err);
+     } else {
+     self.reconnectInterval = setInterval(function () {
+     self.sendJob(params, callback);
+     },
+     self.bc.networkFailed.reconnectWait);
+     }
+     } else {
+     logger.debug('sent observation: ' + params['@type']);
+     callback(null);
+     }
+     });
+     } catch (err) {
+     callback(err);
+     }*/
 };
 
 Observations.prototype.send = function (observation) {
-    try {
-        var queue = client.queue(queueObservations);
-        queue.enqueue(jobSend, observation, function (err, job) {
-            if (err) {
-                logger.error(err);
-            } else {
-                logger.debug('enqueued observation type: ' + job.data.params['@type']);
-            }
-        });
-    } catch (err) {
-        logger.error(err);
-    }
+    var self = this;
+    self.qObservations.put(uuid.v4(), observation, {keyEncoding:'json',valueEncoding: 'json'},function (err) {
+        if (err) {
+            logger.error(err);
+        } else {
+            logger.debug('enqueued observation type: ' + observation['@type']);
+        }
+    });
 };
 
 Observations.prototype.generateSensorConfig = function (jsonCnfg, complete) {
@@ -212,7 +276,7 @@ Observations.prototype.getPluginTypeInstances = function (cnfg, config, complete
 
     cnfg.set(plugName, {name: plugName, id: config['entitytype'], properties: properties, instances: new hashMap()});
     
-    _self.dapClient.getPluginsInstances(config.thingtype,
+    _self.dapClient.getPluginsInstances(config.entitytype,
             function (err, instances) {
                 if (err) {
                     complete(err);

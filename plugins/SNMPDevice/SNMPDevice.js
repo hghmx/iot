@@ -29,7 +29,6 @@ require('string.prototype.endswith');
 var moment = require('moment');
 var util = require('util');
 var clone = require('clone');
-var logger = require('./../logger').logger;
 //snmpTrapOID
 var SNMP_TRAP_OID = "1.3.6.1.6.3.1.1.4.1.0";
 //coldStart OID 
@@ -47,35 +46,37 @@ var TRAP_PORT = 162;
 function SNMPDevice() {
 }
 
-SNMPDevice.prototype.start = function (bc, observationsCnfg, thingInfo, complete) {
+SNMPDevice.prototype.start = function ( context, complete) {
     try {
         var self = this;
         self.client = snmp.createClient();
         var operations = [];
-        self.ipaddress = thingInfo.ipaddress;
-        self.communityString = thingInfo.communityString;
-        self.thingId = thingInfo._name;
-        self.thingType = thingInfo["@type"];
-        self.frequency = moment.duration(thingInfo.readFrequency).asMilliseconds();
-        self.snmpVersion = self.getSnmpVer( thingInfo.snmpVersion);
-        self.observationsCnfg = observationsCnfg;
+        self.ipaddress = context.thingInstance.ipaddress;
+        self.communityString = context.thingInstance.communityString;
+        self.thingId = context.thingInstance._name;
+        self.thingType = context.thingInstance["@type"];
+        self.frequency = moment.duration(context.thingInstance.readFrequency).asMilliseconds();
+        self.snmpVersion = self.getSnmpVer( context.thingInstance.snmpVersion);
+        self.observationsCnfg = context.observationsCnfg;
         
-        if(thingInfo.location && thingInfo.location.length>0){
-            self.location = thingInfo.location;
-        }else if(bc.location){
-            self.location = bc.location;
+        self.logger = context.logger;
+        
+        if(context.thingInstance.location && context.thingInstance.location.length>0){
+            self.location = context.thingInstance.location;
+        }else if(context.bc.location){
+            self.location = context.bc.location;
         }
 
-        if (thingInfo.getOIDs || thingInfo.getOIDs.length > 0) {
-            self.getOIDs = JSON.parse(thingInfo.getOIDs);
+        if (context.thingInstance.getOIDs || context.thingInstance.getOIDs.length > 0) {
+            self.getOIDs = JSON.parse(context.thingInstance.getOIDs);
             if (self.hasGets()) {
                 self.getResults = [];
                 operations.push(self.snmpget.bind(self));
             }
         }
 
-        if (thingInfo.setOIDs || thingInfo.setOIDs.length > 0) {
-            self.setOIDs = JSON.parse(thingInfo.setOIDs);
+        if (context.thingInstance.setOIDs || context.thingInstance.setOIDs.length > 0) {
+            self.setOIDs = JSON.parse(context.thingInstance.setOIDs);
             if (self.hasSets()) {
                 operations.push(self.snmpset.bind(self));
             }
@@ -170,7 +171,7 @@ SNMPDevice.prototype.get = function (getOid, complete) {
     };
     self.client.get(self.ipaddress, self.communityString, self.snmpVersion, getOid.oid, function (snmpmsg) {
         snmpmsg.pdu.varbinds.forEach(function (varbind) {
-            console.log(varbind.oid + ' = ' + varbind.data.value);
+            if(self.logger){ self.logger.debug(varbind.oid + ' = ' + varbind.data.value)};
             var getOid = finOidById(varbind.oid);
             if (getOid) {
                 self.getResults.push({name: getOid.name, oid: getOid.oid, value: varbind.data.value, type: varbind.data.typename});
@@ -199,7 +200,7 @@ SNMPDevice.prototype.set = function (setOid, complete) {
     var self = this;
     self.client.set(self.ipaddress, self.communityString, self.snmpVersion, setOid.oid, snmp.data.createData({type: setOid.type,
         value: setOid.value}), function (snmpmsg) {
-        // console.log(snmp.pdu.strerror(snmpmsg.pdu.error_status));
+        if(self.logger){ self.logger.debug(snmp.pdu.strerror(snmpmsg.pdu.error_status))};
         if (snmpmsg.pdu.error_status !== 0) {
             //send snmp error message
             var snmpError = self.newSnmpError( snmpmsg.pdu.error_status, snmp.pdu.strerror(snmpmsg.pdu.error_status));
@@ -247,7 +248,7 @@ SNMPDevice.prototype.setTrapListener = function () {
             variableBinds = JSON.stringify(ms.pdu.varbinds);
             var newSnmpTrup = self.newSnmpTrup(trapOID, trapTimeTicks, variableBinds);
         }
-        console.log(snmp.message.serializer(msg));
+        if(self.logger){ self.logger.debug(snmp.message.serializer(msg))};
     });
     
     var options = {family: 'udp4', port: TRAP_PORT, addr:  this.ip};

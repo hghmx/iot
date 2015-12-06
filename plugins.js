@@ -109,14 +109,17 @@ Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance,
     var self = this;
     try{
         var newPlugin = new plugClass[ pluginName]();
-        this.validateInterface(pluginName, newPlugin);        
-        newPlugin.start(self.bc, pluginInstance.observations, pluginInstance.config, function (err) {
+        this.validateInterface(pluginName, newPlugin); 
+        var context = { bc: self.bc,    observationsCnfg:pluginInstance.observations, 
+                        thingInstance: pluginInstance.config, logger : logger };
+        
+        newPlugin.start(context, function (err) {
             if (err) {
                 complete(err);
             } else {
                 pluginInstance['instance'] = newPlugin;
                 //self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
-                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  pluginInstance.id));
+                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  newPlugin['@id']));
                 complete(null);
             }
         });
