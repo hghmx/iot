@@ -216,72 +216,73 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
     var id = self.observs.getResourceName(observation['resourceuri']);
     function updatePlugIn() {
         var plugIn = self.plugins.get(pluginName).instances.get(id).instance;
-        var od =  new Date(observation.occurrencetime);         
-        var pd = new Date(plugIn._lastmodified);
-        //if(od > pd){
-            var pluginInstance = self.plugins.get(pluginName).instances.get(id);
-            //set new value... 
+        var pluginInstance = self.plugins.get(pluginName).instances.get(id);
+        var od = new Date(observation.occurrencetime);
+        //var pd = new Date( pluginInstance.config._lastmodified);      
+        //set new value... 
+        if (pluginInstance.config[observation['propId']] !== observation['newvalue']) {
+            pluginInstance.config._lastmodified = od.getTime();
             pluginInstance.config[observation['propId']] = observation['newvalue'];
-            var context = { bc: self.bc,    observationsCnfg:pluginInstance.observations, 
-                        thingInstance: pluginInstance.config, logger : logger };
-            async.series([plugIn.stop.bind(plugIn), 
-                    async.apply(plugIn.start.bind(plugIn), context)],
-                function(err){
-                   if(err){
-                       self.sendPluginError(id, err);
-                       complete(err);
-                   }else{
-                       logger.debug(util.format("Updated plugIn %s property %s from %s to %s"),
-                       id,observation['propId'], pluginInstance.config[observation['propId']],
-                       observation['newvalue']);
-                       complete(null);
-                   } 
+            var context = {bc: self.bc, observationsCnfg: pluginInstance.observations,
+                thingInstance: pluginInstance.config, logger: logger};
+            async.series([plugIn.stop.bind(plugIn),
+                async.apply(plugIn.start.bind(plugIn), context)],
+                function (err) {
+                    if (err) {
+                        self.sendPluginError(id, err);
+                        complete(err);
+                    } else {
+                        logger.debug(util.format("Updated plugIn %s last modified at %s property %s from %s to %s"),
+                            id, od, observation['propId'], pluginInstance.config[observation['propId']],
+                            observation['newvalue']);
+                        complete(null);
+                    }
                 });
-        //}
+        }
     }
 
     function newPlugIn() {
         //"resourceuri": "/amtech/things/entities/cardemo",
         self.dapClient.getThing(observation['resourceuri'],
-                function (err, instance) {
-                    if (err) {
-                        logger.error(util.format("Error Getting a new  plugin %s id %s information error: %s", pluginName,
-                                self.observs.getResourceName(observation['resourceuri']), err.message));
-                        //send error
-                        self.sendPluginError(pluginName, err);
-                    } else {
-                        try {
-                            var pluginName = self.observs.getResourceName(instance['@type']);
-                            //was created in parallel
-                            if (self.plugins.get(pluginName).instances.has(id)) {
-                                updatePlugIn();
-                            }else{
-                                var plugClass = require(pluginsDir + '/' + pluginName);
-                                var resourceUrn = self.observs.getResourceName(observation['resourceuri']);
-                                self.plugins.get(pluginName).instances.set(resourceUrn, {config: instance});
-                                self.newInstance(plugClass, pluginName,
-                                        self.plugins.get(pluginName).config,
-                                        self.plugins.get(pluginName).instances.get(resourceUrn),
-                                        function (err) {
-                                            if (err) {
-                                                logger.error(util.format("Error starting a new  plugin %s id %s information error: %s", pluginName,
-                                                        self.observs.getResourceName(observation['resourceuri']), err.message));
-                                                //send error
-                                                self.sendPluginError(pluginName, err);
-                                            }else{
-                                                logger.debug( util.format("Created a new  plugin type %s with id", pluginName, id));
-                                            }
-                                        });
-                                
-                            }
-                        } catch (err) {
-                            logger.error(util.format("Error Creating a new  plugin %s id %s information error: %s", pluginName,
-                                    self.observs.getResourceName(observation['resourceuri']), err.message));
-                            self.sendPluginError(pluginName, err);
+            function (err, instance) {
+                if (err) {
+                    logger.error(util.format("Error Getting a new  plugin %s id %s information error: %s", pluginName,
+                        self.observs.getResourceName(observation['resourceuri']), err.message));
+                    //send error
+                    self.sendPluginError(pluginName, err);
+                } else {
+                    try {
+                        var pluginName = self.observs.getResourceName(instance['@type']);
+                        //was created in parallel
+                        if (self.plugins.get(pluginName).instances.has(id)) {
+                            updatePlugIn();
+                        } else {
+                            var plugClass = require(pluginsDir + '/' + pluginName);
+                            var resourceUrn = self.observs.getResourceName(observation['resourceuri']);
+                            self.plugins.get(pluginName).instances.set(resourceUrn, {config: instance});
+                            self.newInstance(plugClass, pluginName,
+                                self.plugins.get(pluginName).config,
+                                self.plugins.get(pluginName).instances.get(resourceUrn),
+                                function (err) {
+                                    if (err) {
+                                        logger.error(util.format("Error starting a new  plugin %s id %s information error: %s", pluginName,
+                                            self.observs.getResourceName(observation['resourceuri']), err.message));
+                                        //send error
+                                        self.sendPluginError(pluginName, err);
+                                    } else {
+                                        logger.debug(util.format("Created a new  plugin type %s with id", pluginName, id));
+                                    }
+                                });
+
                         }
+                    } catch (err) {
+                        logger.error(util.format("Error Creating a new  plugin %s id %s information error: %s", pluginName,
+                            self.observs.getResourceName(observation['resourceuri']), err.message));
+                        self.sendPluginError(pluginName, err);
                     }
-                    complete(null);
-                });
+                }
+                complete(null);
+            });
     }
 
     switch (observation.crudoperation) {
@@ -297,24 +298,23 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
             break;
         case 'DELETE':
             var plugIn = self.plugins.get(pluginName).instances.get(id).instance;
-            if(self.plugins.get(pluginName).instances.has(id)){
+            if (self.plugins.get(pluginName).instances.has(id)) {
                 self.plugins.get(pluginName).instances.remove(id);
                 plugIn.stop(function (err) {
                     if (err) {
                         logger.error(util.format("Error Deleting a plugin %s id %s error: %s", pluginName, id, err.message));
                         //send error
                         this.sendPluginError(pluginName, err);
-                    }else{
-                        logger.debug( util.format("Delete a plugin type %s with id", pluginName, id));
+                    } else {
+                        logger.debug(util.format("Delete a plugin type %s with id", pluginName, id));
                     }
                     complete(null);
                 });
-            }else{
-                 complete(null);
+            } else {
+                complete(null);
             }
             break;
-    }
-    ;
+    };
 };
 
 Plugins.prototype.stop = function (plugIn, complete) {
