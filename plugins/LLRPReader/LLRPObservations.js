@@ -33,6 +33,8 @@ var llrpPlaceHolders = ['antennaId','smoothResult', 'filter', 'partition', 'comp
                     'objectClass', 'cAGEOrDODAAC'];                
 var epcObservations =  [
     {   "targetthings": "[]",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "documentType": "",
         "serialReference": "",
@@ -46,11 +48,9 @@ var epcObservations =  [
         "locationReference": "",
         "topic": "",
         "managerNumber": "",
-        "groupReportResult": "",
         "@type": "/amtech/linkeddata/types/composite/observation/decode96EPC",
         "objectClass": "",
         "extension": "",
-        "creationDate": "2015-11-26T06:09:10.939Z",
         "guesttenants": [],
         "epcUri": "",
         "serviceReference": "",
@@ -61,15 +61,15 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/decodeEPCSimulation"
     },
     {   "topic": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
-        "groupReportResult": "",
         "targetthings": "[]",
         "dataSize": 0,
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/dataEPC",
         "epcString": "",
         "binaryData": "",
-        "creationDate": "2015-11-28T06:27:55.016Z",
         "smoothingResult": "",
         "guesttenants": [],
         "producer": "",
@@ -79,15 +79,15 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/dataEPCSimulation"
     },
     {   "topic": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "epcString": "",
-        "groupReportResult": "",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/sgtinEPC",
         "companyPrefix": "",
         "serialNumber": "",
-        "creationDate": "2015-11-27T16:42:19.244Z",
         "smoothingResult": "new",
         "epcUri": "",
         "guesttenants": [],
@@ -98,13 +98,13 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/stginEPCDevelopment"
     },
     {   "topic": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
-        "groupReportResult": "",
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/rawEPC",
         "epcString": "",
-        "creationDate": "2015-11-27T17:35:39.770Z",
         "smoothingResult": "",
         "epcUri": "",
         "guesttenants": [],
@@ -114,13 +114,13 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/rawEPCSimulator"
     },
     {   "topic": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
-        "groupReportResult": "",
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/encoded96EPC",
         "epcString": "",
-        "creationDate": "2015-11-28T07:16:02.643Z",
         "smoothingResult": "",
         "guesttenants": [],
         "producer": "",
@@ -129,7 +129,8 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/encoded96EPCSimulation"
     },
     {   "topic": "",
-        "groupReportResult": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "serialReference": "",
@@ -146,14 +147,14 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:25:23 UTC 2015"
     },
     {   "topic": "",
-        "groupReportResult": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/sglnEPC",
         "epcString": "",
         "companyPrefix": "",
-        "creationDate": "Tue Nov 24 22:23:20 UTC 2015",
         "smoothingResult": "",
         "epcUri": "",
         "guesttenants": [],
@@ -164,7 +165,8 @@ var epcObservations =  [
         "locationReference": ""
     },
     {   "topic": "",
-        "groupReportResult": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "location": "",
@@ -172,7 +174,6 @@ var epcObservations =  [
         "epcString": "",
         "serialNumber": "",
         "companyPrefix": "",
-        "creationDate": "Tue Nov 24 22:22:14 UTC 2015",
         "assetType": "",
         "smoothingResult": "",
         "description": "",
@@ -183,7 +184,8 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:22:14 UTC 2015"
     },
     {   "topic": "",
-        "groupReportResult": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "individualAssetReference": "",
@@ -191,7 +193,6 @@ var epcObservations =  [
         "@type": "/amtech/linkeddata/types/composite/observation/giaiEPC",
         "epcString": "",
         "companyPrefix": "",
-        "creationDate": "Tue Nov 24 22:19:57 UTC 2015",
         "smoothingResult": "",
         "epcUri": "",
         "guesttenants": [],
@@ -201,7 +202,8 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:19:57 UTC 2015"
     },
     {   "topic": "",
-        "groupReportResult": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "documentType": "",
@@ -209,7 +211,6 @@ var epcObservations =  [
         "@type": "/amtech/linkeddata/types/composite/observation/gdtiEPC",
         "epcString": "",
         "companyPrefix": "",
-        "creationDate": "Tue Nov 24 22:18:43 UTC 2015",
         "smoothingResult": "",
         "epcUri": "",
         "guesttenants": [],
@@ -219,7 +220,8 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:18:43 UTC 2015"
     },
     {   "topic": "",
-        "groupReportResult": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "serialReference": "",
@@ -227,7 +229,6 @@ var epcObservations =  [
         "@type": "/amtech/linkeddata/types/composite/observation/gsrnEPC",
         "epcString": "",
         "companyPrefix": "",
-        "creationDate": "Tue Nov 24 22:17:14 UTC 2015",
         "smoothingResult": "",
         "epcUri": "",
         "guesttenants": [],
@@ -237,8 +238,9 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:17:14 UTC 2015"
     },
     {   "topic": "",
+        "antennaId": "",
+        "antennaName": "",
         "managerNumber": "",
-        "groupReportResult": "",
         "guestusers": [],
         "targetthings": "[]",
         "location": "",
@@ -246,7 +248,6 @@ var epcObservations =  [
         "epcString": "",
         "serialNumber": "",
         "objectClass": "",
-        "creationDate": "Tue Nov 24 22:15:57 UTC 2015",
         "smoothingResult": "",
         "description": "",
         "guesttenants": [],
@@ -255,15 +256,15 @@ var epcObservations =  [
         "tagEncoding": "gid",
         "occurrencetime": "Tue Nov 24 22:15:57 UTC 2015"
     },
-    {"topic": "",
-        "groupReportResult": "",
+    {   "topic": "",
+        "antennaId": "",
+        "antennaName": "",
         "guestusers": [],
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/dodEPC",
         "epcString": "",
         "serialNumber": "Product serial number",
-        "creationDate": "Sat Nov 28 21:38:23 UTC 2015",
         "smoothingResult": "",
         "guesttenants": [],
         "description": "",
@@ -274,17 +275,31 @@ var epcObservations =  [
         "occurrencetime": "Sat Nov 28 21:38:23 UTC 2015"
     },
     {   "topic": "",
+        "antennaId": "",
+        "antennaName": "",
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/llrpError",
         "epcString": "",
         "code": 0,
         "message": "",
-        "creationDate": "Sun Nov 29 16:38:51 UTC 2015",
         "description": "",
         "guesttenants": [],
         "producer": "",
         "occurrencetime": "Sun Nov 29 16:38:51 UTC 2015"
+    },
+{
+        "topic": "",
+        "groupName": "",
+        "guestusers": [],
+        "targetthings": "[]",
+        "location": "",
+        "@type": "/amtech/linkeddata/types/composite/observation/groupEPC",
+        "groupResult": "",
+        "description": "",
+        "guesttenants": [],
+        "producer": "",
+        "occurrencetime": "Tue Dec 08 19:55:21 UTC 2015"
     }    
 ];               
                 
@@ -305,16 +320,54 @@ function LLRPObservations(location,
     self.decodeEPCValues = decodeEPCValues;
     self.useSingleDecode96EPC = useSingleDecode96EPC;
     self.groupReport = groupReport;
-    self.antennas = antennas;
-    self.groupAntennas = [];
-    self.antennas.forEach(function (antenna){
-        if(antenna.groupReport){
-            self.groupAntennas.push(antenna.id);
-        }
-    });
+    self.setAntennaGroups(antennas);
     self.observsGroups  = new hashMap();
     self.logger = logger;
 }
+
+LLRPObservations.prototype.setAntennaGroups = function (antennas) { 
+    var self = this;
+    self.antennas = antennas;
+    self.groupAntennas = [];
+    if(self.antennas){
+        self.antennas.forEach(function (antenna){
+            if(antenna.groupReport && self.groupAntennas.indexOf(antenna.groupReport) === -1){
+                self.groupAntennas.push(antenna.groupReport);
+            }
+        });
+    }    
+};
+
+/*
+    [{id:1, 
+    name : "door1", 
+    groupReport: "group1", 
+    decodeEPCValues : true, 
+    smoothing: true,
+    reportAmountForSmoothing:2, 
+    useSingleDecode96EPC : false}];
+*/
+
+LLRPObservations.prototype.getAntennaValue = function (antennaId, property) {   
+    var value = null;
+    var self = this;
+    if(self.antennas && self.antennas.has(antennaId) && self.antennas.get(antennaId)[property] ){
+        value = self.antennas.get(antennaId)[property];
+    }
+    return value;
+};
+
+LLRPObservations.prototype.getAntennaName = function (antennaId) {
+    var self = this;
+    var name = self.getAntennaValue(antennaId, 'name');
+    return name? name : antennaId;
+};
+
+LLRPObservations.prototype.getUseSingleDecode96EPC = function (antennaId) {
+    var self = this;
+    var useSingleDecode96EPC = self.getAntennaValue(antennaId, 'useSingleDecode96EPC');
+    return useSingleDecode96EPC? useSingleDecode96EPC : self.useSingleDecode96EPC;
+};
 
 LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {   
     var self = this;
@@ -322,7 +375,7 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
     var observationGroups = [];
     tagsInfo.forEach(function (tagToSend) {
         var isEpcEncodings = epcEncodings.indexOf(tagToSend.name )!== -1;
-        if( self.useSingleDecode96EPC &&  isEpcEncodings){
+        if( self.getUseSingleDecode96EPC(tagToSend.antenna) &&  isEpcEncodings){
             observationName = 'decode96EPC';
         }else{
             observationName = tagToSend.name + 'EPC';
@@ -353,7 +406,8 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
         }
         epcObsrv.epcString = tagToSend.tag;
         epcObsrv.tagEncoding = tagToSend.name;
-
+        epcObsrv.antennaId= tagToSend.antenna;
+        epcObsrv.antennaName = self.getAntennaName(tagToSend.antenna);
         //Configurable properties
         if(self.observationsCnfg && self.observationsCnfg.has(observationName)){
             epcObsrv.targetthings = self.fillPlaceholder(self.observationsCnfg.get(observationName).thingsconfig, ph);
@@ -361,8 +415,9 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
             epcObsrv.topic = self.fillPlaceholder(self.observationsCnfg.get(observationName).topicschema, ph);
             epcObsrv.occurrencetime = new Date().toISOString();
             var key;
-            if(self.groupAntennas.indexOf(tagToSend.antenna) !== -1){
-                key =  tagToSend.antenna + '/' + tagToSend.name;
+            var antennaGroup = self.getAntennaValue(tagToSend.antenna, 'groupReport');
+            if(antennaGroup && self.groupAntennas.indexOf(antennaGroup) !== -1){
+                key =  antennaGroup + '/' + tagToSend.name;
             }else if(self.groupReport){
                 key = tagToSend.name;
             }else{
@@ -384,25 +439,47 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
     if (self.observsGroups.count() > 0) {
         if (!self.groupReport && self.groupAntennas.length === 0) {
             observationGroups = observationGroups.concat(self.observsGroups.get('_all_'));
+            self.logger.debug(util.format('Grouping by %s', '_all_'));
         } else if (self.groupReport) {
-            self.observsGroups.forEach(function (tagsGroup) {
-                tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
-                observationGroups.push(tagsGroup[0]);
+            self.observsGroups.forEach(function (tagsGroup, key) {
+                self.buildGroup(tagsGroup, key);
             });
         } else if (self.groupAntennas.length > 0) {
             self.observsGroups.forEach(function (tagsGroup, key) {
                 var antennaKey = key.split('/')[0];
                 if (self.groupAntennas.indexOf(parseInt(antennaKey)) !== -1) {
-                    tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
-                    observationGroups.push(tagsGroup[0]);
+                    //tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
+                    self.buildGroup(tagsGroup, key);
+                    //observationGroups.push(tagsGroup[0]);
                 } else {
                     observationGroups = observationGroups.concat(tagsGroup);
+                    self.logger.debug(util.format('Adding to grouping by %s ', '_all_'));
                 }
             });
         }
         self.observsGroups.clear();
     }
     return observationGroups;
+};
+
+LLRPObservations.prototype.buildGroup = function (tagsGroup, key) {
+    var self = this;
+    var observationName = 'groupEPC';
+    if(self.observationsCnfg && self.observationsCnfg.has(observationName)){
+        var gObsrv = self.getObsrvInstance(observationName);
+        gObsrv.groupResult = JSON.stringify(tagsGroup);    
+        gObsrv.groupName = key;            
+        gObsrv.targetthings = self.fillPlaceholder(self.observationsCnfg.get(observationName).thingsconfig, ph);
+        gObsrv.producer = self.fillPlaceholder(self.observationsCnfg.get(observationName).producerschema, ph);
+        gObsrv.topic = self.fillPlaceholder(self.observationsCnfg.get(observationName).topicschema, ph);
+        gObsrv.occurrencetime = new Date().toISOString();
+        self.observsGroups.push(gObsrv);
+        self.logger.debug(util.format('Grouping by %s ', key));
+    }else if(!self.observationsCnfg.has(observationName)){
+        //stop
+        self.logger.error(util.format('Observation type %s has not production configuration',
+                observationName) );
+    }       
 };
 
 LLRPObservations.prototype.getObsrvInstance = function (obsrvName) {
@@ -430,10 +507,8 @@ LLRPObservations.prototype.assingEPCDecodeParts = function (observation, parts, 
         }                  
     });    
 };
-LLRPObservations.prototype.fillPlaceholder = function (phString, placeHolders ) {
-    
-    var re = new RegExp( "\\#{(\\b(|" + Object.getOwnPropertyNames(placeHolders).join('|')  + ")\\b)\\}", 'g' );
-    
+LLRPObservations.prototype.fillPlaceholder = function (phString, placeHolders ) {   
+    var re = new RegExp( "\\#{(\\b(|" + Object.getOwnPropertyNames(placeHolders).join('|')  + ")\\b)\\}", 'g' );   
     var replaceClientPlaceholders = (function ()
     {
         var replacer = function (context)
@@ -450,7 +525,6 @@ LLRPObservations.prototype.fillPlaceholder = function (phString, placeHolders ) 
             return input.replace(re, replacer(context));
         };
     })();
-
     return replaceClientPlaceholders(phString, placeHolders);
 };
 

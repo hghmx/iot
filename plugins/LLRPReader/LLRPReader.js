@@ -23,21 +23,18 @@ var fs = require("fs");
 var java = require("java");
 var path=require("path");
 java.classpath.push(path.resolve(__dirname,"./ltkjava-1.0.0.7-with-dependencies.jar"));
-//java.classpath.push("./ltkjava-1.0.0.7-with-dependencies.jar");
-var messageC = require('./LLRPMessagesConstants.js');
-var ROSPEC_ID = 1;
 var net = require('net');
 var util = require('util');
 var File = java.import("java.io.File");
-var msgBuffers = require("./MsgBuffers");
 var hashMap = require('hashmap');
 var epc = require('node-epc');
 var clone = require('clone');
 var async = require('async');
 var epc96Size = 24;
-var smoothNew = 'new';
-var smoothLost = 'lost';
+var msgBuffers = require("./MsgBuffers");
+var messageC = require('./LLRPMessagesConstants.js');
 var llrpObservations =  require("./LLRPObservations").LLRPObservations;
+var llrpSmoothing = require("./LLRPSmoothing").LLRPSmoothing;
 
 String.prototype.padLeft = function (len, c) {
     var s = this, c = c || '0';
@@ -84,38 +81,61 @@ LLRPReader.prototype.start = function (context, complete) {
         if(!context.thingInstance){
             complete(new Error('LLRPReader requires an LLRPReader type instance'));
         }
-        this.smoothing = context.thingInstance.smoothing;
+        
         this.decodeEPCValues = context.thingInstance.decodeEPCValues;
         this.reportAmountForSmoothing = context.thingInstance.reportAmountForSmoothing;
         this.useSingleDecode96EPC = context.thingInstance.useSingleDecode96EPC;
         this.groupReport = context.thingInstance.groupReport;
-        
+        if( context.thingInstance.addRospec){
+            this._addRospec = context.thingInstance.addRospec;
+        }    
+        if( context.thingInstance.setReaderConfig){
+            this._setReaderConfig = context.thingInstance.setReaderConfig;
+        }
         this.port = context.thingInstance.port;
         this.ipaddress = context.thingInstance.ipaddress;
         this.observationsCnfg = context.observationsCnfg;
         this.location = context.bc.location;        
-        this.setCommands();
-        this.msgBuffers = new msgBuffers.MsgBuffers();
         this.name = context.thingInstance._name;
         this.urn = context.thingInstance["@id"]; 
         if(context.logger){
             this.logger = context.logger;
         }
 
-        if(context.thingInstance.antennas){
-            try{
-                this.antennas = JSON.parse( context.thingInstance.antennas); 
-            }catch(e){
-                this.antennas =[];
-                 if(this.logger){ this.logger.error(util.format('LLRP reader %s wrong json antenna configuration', this.name));};
-            }
-        }else{            
-            this.antennas =[];
-            if(this.logger){ this.logger.info(util.format('LLRP reader %s running without antenna configuration', this.name));};
-        }
+        this.setAntennasMap(context.thingInstance.antennas);        
+        this.smoothing = context.thingInstance.smoothing;
         this.connectReader(complete);
     }catch(err){
+        this.sendError(err);
         complete(err);
+    }
+};
+
+LLRPReader.prototype.setAntennasMap = function (antennas) {
+    if (antennas) {
+        try {
+            var _antennas = JSON.parse(antennas);
+            var self = this;
+            self.antennas = new hashMap();
+            _antennas.forEach(function (antenna) {
+                self.antennas.set(antenna.id, antenna);
+            });
+        } catch (e) {
+            this.antennas = null;
+            if (this.logger) {
+                 this.logger.error(util.format('LLRP reader %s wrong json antenna configuration', this.name));
+            }
+            ;
+            if (this.logger) {
+                 this.logger.info(util.format('LLRP reader %s running without antenna configuration', this.name));
+            }
+            ;
+        }
+    } else {
+        this.antennas = null;
+        if (this.logger) {
+             this.logger.info(util.format('LLRP reader %s running without antenna configuration', this.name));
+        };
     }
 };
 
@@ -127,6 +147,10 @@ LLRPReader.prototype.connectReader = function ( complete) {
         self.lastReportNotification = 'none';
         
         self.isConnected = false;
+
+        this.setCommands();
+        this.msgBuffers = new msgBuffers.MsgBuffers();
+        
         self.llrpObservs = new llrpObservations(self.location,
                                 self.observationsCnfg,
                                 self.decodeEPCValues, 
@@ -134,6 +158,14 @@ LLRPReader.prototype.connectReader = function ( complete) {
                                 self.groupReport,
                                 self.antennas,
                                 self.logger);
+                                
+        self.llrpSmothing = new llrpSmoothing(self.smoothing, 
+                                              this.antennas, 
+                                              self.llrpObservs, 
+                                              self.logger);
+        
+        self.smoothing = this.llrpSmothing.smoothig;
+                                
         self._complete = complete;
         self.socket = new net.Socket();
         // timeout after 60 seconds.
@@ -207,7 +239,7 @@ LLRPReader.prototype.startEventCycle = function (data) {
                         else if(llrpMessage.getReaderEventNotificationDataSync().getROSpecEventSync()){
                             if(self.lastReportNotification === 'End_Of_AISpec'){
                                 if(self.smoothing){
-                                    self.doSmoothing();
+                                    self.llrpSmothing.doSmoothing();
                                     self.logger.debug("Run smoothing no report received");
                                 }                                
                             }else{
@@ -315,10 +347,17 @@ function decode96EPC(tagInfo, complete) {
         });
 };
 
+LLRPReader.prototype.getdecodeEPCValues = function (antennaId) {
+    var self = this;
+    var decodeEPCValues = self.llrpObservs.getAntennaValue(antennaId, 'decodeEPCValues');
+    return decodeEPCValues? decodeEPCValues : self.decodeEPCValues;
+};
+
 LLRPReader.prototype.getTagIngo = function (ts, complete) {
     var self = this;
     var tag = ts.getEPCParameterSync().getEPCSync().toStringSync();
     var antenna = ts.getAntennaIDSync().getAntennaIDSync().intValueSync();
+    
     var tagUrn = antenna + '/' + tag;
     var tagInfo;
     //new
@@ -327,7 +366,7 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
         if (ts.getEPCParameterSync().getNameSync() === 'EPC_96') {
             tagInfo['EPC96'] = {};
             tagInfo.EPC96['tag'] = tag.padLeft(epc96Size, '0');
-            if (self.decodeEPCValues) {
+            if (self.getdecodeEPCValues(antenna)) {
                 decode96EPC(tagInfo,
                     function(err){
                         if(!err){
@@ -344,8 +383,7 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
                 self.addTagInfo(tagUrn, tagInfo);
                 self.logger.debug(util.format("NEW TAG---(encoded96)-------> URN: %s Name: %s", tagUrn, tagInfo.name) );
                 complete(null);
-            }
-            
+            }            
         } else if (ts.getEPCParameterSync().getNameSync() === 'EPCData') {
             tagInfo['EPCData'] = {};
             tagInfo['name'] = 'data';
@@ -363,13 +401,12 @@ LLRPReader.prototype.getTagIngo = function (ts, complete) {
         self.updateTagInfo(tagUrn, ts, tagInfo);
         complete(null);
     }
-
 };
 
 LLRPReader.prototype.addTagInfo = function (tagUrn, tagInfo) {
     //new
     if (this.smoothing) {
-        this.newTags.push(tagUrn);
+        this.llrpSmothing .newTags.push(tagUrn);
     }
     this.tagEvents.set(tagUrn, tagInfo);
 };
@@ -386,32 +423,14 @@ LLRPReader.prototype.updateTagInfo = function (tagUrn, ts, tagInfo) {
     }
 };
 
-LLRPReader.prototype.logTags = function (comment, tags, smoothStatus) {
-    var self = this;
-    if(self.logger && self.logger.transports.console.level === "debug"){
-        self.logger.debug(util.format("---------------------%s--------------", comment));
-        tags.forEach(function (ts) {
-            if(!smoothStatus){
-                self.logger.debug(util.format("Tag data %s \n json%s", ts.tag, JSON.stringify(ts, undefined, 4)));
-            }else if(ts.smoothingResult === smoothStatus){
-                 self.logger.debug(util.format("Tag data %s \n json%s", ts.tag, JSON.stringify(ts, undefined, 4)));
-            }
-        });        
-    }
-};
-
 LLRPReader.prototype.eventCycle = function (accessReport) {
     var self = this;
-    if (self.smoothing) {
-        self.newTags = [];
-        self.lostTags = [];
-    }
     try {
         var reportTags = accessReport.getTagReportDataListSync().toArraySync();
         self.logger.debug(util.format("EVENT CYCLE TOTAL----------> %d", reportTags.length) );
         if (reportTags.length === 0) {
             if(self.smoothing){
-                self.doSmoothing();
+                self.llrpSmothing.doSmoothing();
             }
         } else {
             async.each(reportTags,
@@ -423,64 +442,19 @@ LLRPReader.prototype.eventCycle = function (accessReport) {
                         };
                     } else {
                         if (!self.smoothing) {
-                            self.logTags("All no smoothing", self.tagEvents.values());
+                            self.llrpSmothing.logTags("All no smoothing", self.tagEvents.values());
                             self.buildAndSend(self.tagEvents.values());
                             self.tagEvents.clear();
                         } else {
-                            self.doSmoothing();
+                            var smoothTags = self.llrpSmothing.doSmoothing(self.tagEvents);
+                            self.buildAndSend(smoothTags);
                         }
                     }
                 });
         }
     } catch (e) {
-        console.error(e);
+         self.logger.error(e);
     }
-};
-
-LLRPReader.prototype.doSmoothing = function () {
-    var self = this;
-    if(!self.newTags || !self.lostTags) return;
-    if(self.tagEvents.count === 0 ) return;
-    self.applySmooth();
-    var smoothTags = [];
-    //Send new event
-    self.newTags.forEach(function (tagUrn) {
-        var tagNew = self.tagEvents.get(tagUrn);
-        tagNew['smoothingResult'] = smoothNew;
-        smoothTags.push(tagNew);
-    });
-    self.logTags("New", smoothTags, smoothNew);
-
-    self.lostTags.forEach(function (tagUrn) {
-        var tagLost = self.tagEvents.get(tagUrn);
-        tagLost['smoothingResult'] = smoothLost;
-        smoothTags.push(tagLost);
-    });
-    self.logTags("Lost", smoothTags, smoothLost);
-    self.buildAndSend(smoothTags);
-    self.lostTags.forEach(function (tagUrn) {
-        self.tagEvents.remove(tagUrn);
-    });
-    self.tagEvents.forEach(function (tagInfo) {
-        if (tagInfo.reportAmountForSmoothing === 0) {
-            tagInfo.reportAmountForSmoothing = 1;
-        }
-    });
-    //clean
-    self.lostTags = [];
-    self.newTags = [];
-};
-
-LLRPReader.prototype.applySmooth = function () {
-    var self = this;
-    self.tagEvents.forEach(function(tag){
-        if(tag.reportAmountForSmoothing > 0){
-            tag.reportAmountForSmoothing += 1;
-        }
-        if(tag.reportAmountForSmoothing >= self.reportAmountForSmoothing){
-            self.lostTags.push(tag.tagUrn);
-        }
-    }); 
 };
 
 LLRPReader.prototype.buildAndSend = function (tagsInfo) {
@@ -510,21 +484,12 @@ LLRPReader.prototype.sendError = function (error) {
 LLRPReader.prototype.stop = function (complete) {
     try {
         if (this.isConnected) {
-            this.sendMessage('CLOSE_CONNECTION', this.closeConnection);
+            //this.sendMessage('CLOSE_CONNECTION', this.closeConnection);
+            this.socket.destroy();
         }
         this.configReaderSet = false;
         this.isConnected = false;
-    } catch (e) {
-        complete(e);
-    }
-};
-
-LLRPReader.prototype.update = function (observation, complete) {
-    try {
-        //stop if needed
-        //set property
-        ////connect reader
-        //start if needed
+        complete(null);
     } catch (e) {
         complete(e);
     }

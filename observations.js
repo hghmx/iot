@@ -146,34 +146,6 @@ Observations.prototype.sendJob = function (key, value, callback) {
     } catch (err) {
         callback(err);
     }
-
-    /*
-     try {
-     if (self.reconnectInterval) {
-     clearInterval(self.reconnectInterval);
-     }
-     async.retry(
-     {times: this.bc.networkFailed.retries, interval: this.bc.networkFailed.failedWait},
-     async.apply(dapClient.prototype.sendObservation.bind(this.dapClient), params),
-     function (err) {
-     if (err) {
-     logger.error(util.format("Error %s sending observation type %s", err.message, params['@type']));
-     if (err instanceof Error && err.code && err.code === 403) {
-     callback(err);
-     } else {
-     self.reconnectInterval = setInterval(function () {
-     self.sendJob(params, callback);
-     },
-     self.bc.networkFailed.reconnectWait);
-     }
-     } else {
-     logger.debug('sent observation: ' + params['@type']);
-     callback(null);
-     }
-     });
-     } catch (err) {
-     callback(err);
-     }*/
 };
 
 Observations.prototype.send = function (observation) {

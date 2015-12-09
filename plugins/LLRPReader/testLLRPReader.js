@@ -60,7 +60,9 @@ var llrpClientM2mBridge = {
     "@id": "/amtech/things/entities/llrpClientM2mBridge",
     "frequencyOfReport": 6000,
     "_user": "m2mcreator@amtech.mx",
-    "useSingleDecode96EPC": false
+    "useSingleDecode96EPC": false,
+    "addRospec": "",
+    "setReaderConfig": ""    
 };
 
 

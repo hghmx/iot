@@ -304,57 +304,6 @@ SNMPDevice.prototype.executeSet = function (setOIDs, complete) {
     }
 };
 
-SNMPDevice.prototype.update = function (observation, complete) {
-    try {
-        var self = this;
-        if (observation.newvalue === observation.oldvalue) {
-            complete(null);
-        }
-        if (observation.propId === "readFrequency") {
-            this.frequency = moment.duration(observation.newvalue).asMilliseconds();
-            this.setGetWithFrequency();
-        } else if (observation.propId === "setOIDs") {
-            this.executeSet(observation.newvalue, complete);            
-        } else if (observation.propId === "getOIDs") {
-            if (observation.newvalue.length > 0) {
-                this.getOIDs = JSON.parse(observation.newvalue);
-                if (this.hasGets()) {
-                    this.getResults = [];
-                    self.snmpget(function (err) {
-                        if (err) {
-                            complete(err);
-                            //log error
-                        }else{
-                            self.sendGetResults();
-                            complete(null);
-                        }
-                    });
-                }
-            } else {
-                this.getOIDs = observation.newvalue;
-                complete(null);
-            }
-        } else if (observation.propId === "location") {
-            this.location = observation.newvalue;
-            complete(null);
-        } else if (observation.propId === "ipaddress") {
-            this.ipaddress = observation.newvalue;
-            complete(null);
-        } else if (observation.propId === "snmpVersion") {
-            self.snmpVersion = self.getSnmpVer( observation.newvalue); 
-            complete(null);
-        }else if (observation.propId === "communityString") {
-            this.communityString = observation.newvalue;
-            complete(null);
-
-        }else {
-            complete(null);
-        }
-    } catch (e) {
-        complete(e);
-    }
-};
-
 SNMPDevice.prototype.command = function (observation, complete) {
     try {
         if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/snmpSet"){

@@ -23,7 +23,7 @@ var async = require('async');
 var fs = require('fs');
 var extfs = require('extfs');
 var pluginsDir = './plugins';
-var plugininterface = ['start', 'stop', 'update', 'command'];
+var plugininterface = ['start', 'stop', 'command'];
 var logger = require('./logger').logger;
 var util = require('util');
 var dapws = require('./dapWs').DapWs;
@@ -216,20 +216,28 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
     var id = self.observs.getResourceName(observation['resourceuri']);
     function updatePlugIn() {
         var plugIn = self.plugins.get(pluginName).instances.get(id).instance;
-        self.plugins.get(pluginName).instances.get(id).config[observation['propId']]
-                = observation['newvalue'];
-        plugIn.update(observation,
-                function (err) {
-                    if (err) {
-                        logger.error(util.format("Error Updating a plugin %s id %s error: %s"
-                                , pluginName, id, err.message));
-                        //send error
-                        self.sendPluginError(pluginName, err);
-                    }else{
-                        logger.debug( util.format("Update a plugin type %s with id %s property %s", pluginName, id, observation['propId']));
-                    }
-                    complete(null);
+        var od =  new Date(observation.occurrencetime);         
+        var pd = new Date(plugIn._lastmodified);
+        //if(od > pd){
+            var pluginInstance = self.plugins.get(pluginName).instances.get(id);
+            //set new value... 
+            pluginInstance.config[observation['propId']] = observation['newvalue'];
+            var context = { bc: self.bc,    observationsCnfg:pluginInstance.observations, 
+                        thingInstance: pluginInstance.config, logger : logger };
+            async.series([plugIn.stop.bind(plugIn), 
+                    async.apply(plugIn.start.bind(plugIn), context)],
+                function(err){
+                   if(err){
+                       self.sendPluginError(id, err);
+                       complete(err);
+                   }else{
+                       logger.debug(util.format("Updated plugIn %s property %s from %s to %s"),
+                       id,observation['propId'], pluginInstance.config[observation['propId']],
+                       observation['newvalue']);
+                       complete(null);
+                   } 
                 });
+        //}
     }
 
     function newPlugIn() {
