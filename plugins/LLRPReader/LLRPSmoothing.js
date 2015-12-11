@@ -23,12 +23,14 @@ var smoothNew = 'new';
 var smoothLost = 'lost';
 var util = require('util');
 
-function LLRPSmoothing(isReaderSmoothing, antennas, llrpObservs,
+function LLRPSmoothing( isReaderSmoothing, antennas,
+                         llrpObservs,reportAmountForSmoothing,
                           logger  ) {
     this.antennas = antennas;
     this.isReaderSmoothing = isReaderSmoothing;
     this.smoothig = this.setSmoothing(isReaderSmoothing);    
     this.llrpObservs = llrpObservs;
+    this.reportAmountForSmoothing = reportAmountForSmoothing;
     this.logger = logger;
     
     if(this.smoothig){
@@ -74,7 +76,7 @@ LLRPSmoothing.prototype.getAntennaSmoothing = function (antennaId) {
 
 LLRPSmoothing.prototype.doSmoothing = function (tagEvents) {
     var self = this;
-    if(tagEvents.count === 0 ) return;
+    if(!tagEvents || tagEvents.count === 0 ) return null;
     self.applySmooth(tagEvents);
     if(!self.newTags && !self.lostTags && !self.isNoSmothAntenna) return;
     var smoothTags = [];
@@ -105,7 +107,7 @@ LLRPSmoothing.prototype.doSmoothing = function (tagEvents) {
     self.logTags("New", smoothTags, smoothNew);
 
     self.lostTags.forEach(function (tagUrn) {
-        var tagLost = self.tagEvents.get(tagUrn);
+        var tagLost = tagEvents.get(tagUrn);
         tagLost['smoothingResult'] = smoothLost;
         smoothTags.push(tagLost);
     });
@@ -124,18 +126,29 @@ LLRPSmoothing.prototype.doSmoothing = function (tagEvents) {
     return smoothTags;
 };
 
+LLRPSmoothing.prototype.getReportAmountForSmoothing = function (antennaId) {
+    var self = this;
+    var reportAmount = self.llrpObservs.getAntennaValue(antennaId, 'reportAmountForSmoothing');
+    //isReaderSmoothing is the default value for smoothing, 
+    //if antenna has an smoothing configuration overrides isReaderSmoothing value
+    if(reportAmount === undefined || reportAmount === null || typeof reportAmount !== "number"){
+        reportAmount = self.reportAmountForSmoothing;
+        this.logger(util.format("Antenna id %d got reportAmountForSmoothing %s", antennaId, this.reportAmountForSmoothing));
+    }
+    return reportAmount;
+};
+
 LLRPSmoothing.prototype.applySmooth = function (tagEvents) {
     var self = this;
     tagEvents.forEach(function(tag){
         if(tag.reportAmountForSmoothing > 0){
             tag.reportAmountForSmoothing += 1;
         }
-        if(tag.reportAmountForSmoothing >= self.reportAmountForSmoothing){
+        if(tag.reportAmountForSmoothing >= self.getReportAmountForSmoothing(tag.antenna)){
             self.lostTags.push(tag.tagUrn);
         }
     }); 
 };
-
 
 LLRPSmoothing.prototype.logTags = function (comment, tags, smoothStatus) {
     var self = this;

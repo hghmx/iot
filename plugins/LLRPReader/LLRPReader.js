@@ -162,6 +162,7 @@ LLRPReader.prototype.connectReader = function ( complete) {
         self.llrpSmothing = new llrpSmoothing(self.smoothing, 
                                               this.antennas, 
                                               self.llrpObservs, 
+                                              self.reportAmountForSmoothing,
                                               self.logger);
         
         self.smoothing = this.llrpSmothing.smoothig;
@@ -239,7 +240,7 @@ LLRPReader.prototype.startEventCycle = function (data) {
                         else if(llrpMessage.getReaderEventNotificationDataSync().getROSpecEventSync()){
                             if(self.lastReportNotification === 'End_Of_AISpec'){
                                 if(self.smoothing){
-                                    self.llrpSmothing.doSmoothing();
+                                    self.execSmoothing();
                                     self.logger.debug("Run smoothing no report received");
                                 }                                
                             }else{
@@ -353,7 +354,7 @@ LLRPReader.prototype.getdecodeEPCValues = function (antennaId) {
     return decodeEPCValues? decodeEPCValues : self.decodeEPCValues;
 };
 
-LLRPReader.prototype.getTagIngo = function (ts, complete) {
+LLRPReader.prototype.getTagInfo = function (ts, complete) {
     var self = this;
     var tag = ts.getEPCParameterSync().getEPCSync().toStringSync();
     var antenna = ts.getAntennaIDSync().getAntennaIDSync().intValueSync();
@@ -423,18 +424,25 @@ LLRPReader.prototype.updateTagInfo = function (tagUrn, ts, tagInfo) {
     }
 };
 
+LLRPReader.prototype.execSmoothing = function () {
+    var smoothTags = this.llrpSmothing.doSmoothing(this.tagEvents);
+    if(smoothTags){
+        this.buildAndSend(smoothTags);
+    }
+};
+
 LLRPReader.prototype.eventCycle = function (accessReport) {
     var self = this;
     try {
         var reportTags = accessReport.getTagReportDataListSync().toArraySync();
         self.logger.debug(util.format("EVENT CYCLE TOTAL----------> %d", reportTags.length) );
         if (reportTags.length === 0) {
-            if(self.smoothing){
-                self.llrpSmothing.doSmoothing();
+            if(this.smoothing){
+                self.execSmoothing();
             }
         } else {
             async.each(reportTags,
-                LLRPReader.prototype.getTagIngo.bind(self),
+                LLRPReader.prototype.getTagInfo.bind(self),
                 function (err) {
                     if (err) {
                         if (self.logger) {
@@ -446,8 +454,7 @@ LLRPReader.prototype.eventCycle = function (accessReport) {
                             self.buildAndSend(self.tagEvents.values());
                             self.tagEvents.clear();
                         } else {
-                            var smoothTags = self.llrpSmothing.doSmoothing(self.tagEvents);
-                            self.buildAndSend(smoothTags);
+                            self.execSmoothing();
                         }
                     }
                 });

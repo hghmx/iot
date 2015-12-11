@@ -296,6 +296,8 @@ var epcObservations =  [
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/groupEPC",
         "groupResult": "",
+        "tagsResultAmount": 0,
+        "tagEncoding": "",        
         "description": "",
         "guesttenants": [],
         "producer": "",
@@ -442,14 +444,14 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
             self.logger.debug(util.format('Grouping by %s', '_all_'));
         } else if (self.groupReport) {
             self.observsGroups.forEach(function (tagsGroup, key) {
-                self.buildGroup(tagsGroup, key);
+                self.buildGroup(tagsGroup, key, observationGroups);
             });
         } else if (self.groupAntennas.length > 0) {
             self.observsGroups.forEach(function (tagsGroup, key) {
                 var antennaKey = key.split('/')[0];
-                if (self.groupAntennas.indexOf(parseInt(antennaKey)) !== -1) {
+                if (self.groupAntennas.indexOf(typeof antennaKey === "number"? parseInt(antennaKey) : antennaKey) !== -1) {
                     //tagsGroup[0].groupReportResult = JSON.stringify(tagsGroup);
-                    self.buildGroup(tagsGroup, key);
+                    self.buildGroup(tagsGroup, key, observationGroups);
                     //observationGroups.push(tagsGroup[0]);
                 } else {
                     observationGroups = observationGroups.concat(tagsGroup);
@@ -462,18 +464,26 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
     return observationGroups;
 };
 
-LLRPObservations.prototype.buildGroup = function (tagsGroup, key) {
+LLRPObservations.prototype.buildGroup = function (tagsGroup, key, observationGroups) {
     var self = this;
     var observationName = 'groupEPC';
+    
+    var antennaKey = key.split('/')[0];
+    var ph = {'antennaId':antennaKey};
     if(self.observationsCnfg && self.observationsCnfg.has(observationName)){
         var gObsrv = self.getObsrvInstance(observationName);
-        gObsrv.groupResult = JSON.stringify(tagsGroup);    
+        gObsrv.groupResult = JSON.stringify(tagsGroup); 
+        gObsrv.tagsResultAmount = tagsGroup.length;
+        gObsrv.tagEncoding = key.split('/')[1];
         gObsrv.groupName = key;            
         gObsrv.targetthings = self.fillPlaceholder(self.observationsCnfg.get(observationName).thingsconfig, ph);
         gObsrv.producer = self.fillPlaceholder(self.observationsCnfg.get(observationName).producerschema, ph);
         gObsrv.topic = self.fillPlaceholder(self.observationsCnfg.get(observationName).topicschema, ph);
         gObsrv.occurrencetime = new Date().toISOString();
-        self.observsGroups.push(gObsrv);
+        if (self.location) {
+            gObsrv.location = self.location;
+        }
+        observationGroups.push(gObsrv);
         self.logger.debug(util.format('Grouping by %s ', key));
     }else if(!self.observationsCnfg.has(observationName)){
         //stop
