@@ -275,12 +275,9 @@ var epcObservations =  [
         "occurrencetime": "Sat Nov 28 21:38:23 UTC 2015"
     },
     {   "topic": "",
-        "antennaId": "",
-        "antennaName": "",
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/llrpError",
-        "epcString": "",
         "code": 0,
         "message": "",
         "description": "",
@@ -288,7 +285,7 @@ var epcObservations =  [
         "producer": "",
         "occurrencetime": "Sun Nov 29 16:38:51 UTC 2015"
     },
-{
+    {
         "topic": "",
         "groupName": "",
         "guestusers": [],
@@ -541,20 +538,26 @@ LLRPObservations.prototype.fillPlaceholder = function (phString, placeHolders ) 
 LLRPObservations.prototype.getErrorObservations = function (error) {
     var self = this;
     var observationName = 'llrpError';
-    var llrpError = self.getObsrvInstance(observationName);
-    if (error.code) {
-        llrpError.code = error.code;
-    }
-    llrpError.message = error.message;
     if (self.observationsCnfg && self.observationsCnfg.has(observationName)) {
+        var llrpError = self.getObsrvInstance(observationName);
+        if (error.code) {
+            llrpError.code = error.code;
+        }
+        llrpError.message = error.message;
         llrpError.targetthings = self.observationsCnfg.get(observationName).thingsconfig;
         llrpError.producer = self.observationsCnfg.get(observationName).producerschema;
         llrpError.topic = self.observationsCnfg.get(observationName).topicschema;
-    }
-    llrpError.occurrencetime = new Date().toISOString();
-
-
-    return llrpError;
+        if (self.location) {
+            llrpError.location = self.location;
+        }
+        llrpError.occurrencetime = new Date().toISOString();
+        self.logger.debug(util.format("llrpError json:\n json%s", JSON.stringify(llrpError, undefined, 4)));
+        return llrpError;
+    }else{
+        self.logger.error(util.format('Observation type %s has not production configuration',
+                observationName) );  
+        return null;
+    }    
 };
 
 module.exports.LLRPObservations = LLRPObservations;
