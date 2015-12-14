@@ -349,23 +349,35 @@ LLRPObservations.prototype.setAntennaGroups = function (antennas) {
 
 LLRPObservations.prototype.getAntennaValue = function (antennaId, property) {   
     var value = null;
-    var self = this;
-    if(self.antennas && self.antennas.has(antennaId) && self.antennas.get(antennaId)[property] ){
-        value = self.antennas.get(antennaId)[property];
+    if(this.antennas && this.antennas.has(antennaId)){
+        var value = this.antennas.get(antennaId)[property];
+        if(value !== undefined ){
+            value = this.antennas.get(antennaId)[property];
+        }
     }
     return value;
 };
 
 LLRPObservations.prototype.getAntennaName = function (antennaId) {
-    var self = this;
-    var name = self.getAntennaValue(antennaId, 'name');
+    var name = this.getAntennaValue(antennaId, 'name');
     return name? name : antennaId;
 };
 
+LLRPObservations.prototype.getAntennaValueOrDefault = function (antennaId, property, defValue) {   
+    var value = defValue;
+    if(this.antennas && this.antennas.has(antennaId)){
+        var value = this.antennas.get(antennaId)[property];
+        if(value !== undefined ){
+            value = this.antennas.get(antennaId)[property];
+        }
+    }
+    return value;
+};
+
 LLRPObservations.prototype.getUseSingleDecode96EPC = function (antennaId) {
-    var self = this;
-    var useSingleDecode96EPC = self.getAntennaValue(antennaId, 'useSingleDecode96EPC');
-    return useSingleDecode96EPC? useSingleDecode96EPC : self.useSingleDecode96EPC;
+    var value = this.getAntennaValueOrDefault(antennaId, 'useSingleDecode96EPC', this.useSingleDecode96EPC);
+    this.logger.debug(util.format("Antenna id %d got useSingleDecode96EPC %s", antennaId, value));
+    return value;
 };
 
 LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {   
@@ -514,6 +526,7 @@ LLRPObservations.prototype.assingEPCDecodeParts = function (observation, parts, 
         }                  
     });    
 };
+
 LLRPObservations.prototype.fillPlaceholder = function (phString, placeHolders ) {   
     var re = new RegExp( "\\#{(\\b(|" + Object.getOwnPropertyNames(placeHolders).join('|')  + ")\\b)\\}", 'g' );   
     var replaceClientPlaceholders = (function ()

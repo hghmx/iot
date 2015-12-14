@@ -191,14 +191,22 @@ LLRPReader.prototype.connectReader = function ( complete) {
         });
         //cannot connect to the reader other than a timeout.
         self.client.on('error', function (err) {
-            //send m2mError
-            //complete(err);
-            self.logger.error(err.message);
+            var msg = util.format("LLRP reader %s timeout", self.name );
+            if(self.logger){self.logger.error(msg);}  
+            self.sendError(new Error(msg));
         });
-    } catch (e) {
-        //send m2mError
-        complete(e);
+    } catch (err) {
+        self.startError(err);
     }
+};
+
+LLRPReader.prototype.startError = function (err) {
+    var eE = new Error( util.format("Error at %s: %s", this.name, err.message ));
+    if(this._complete){       
+        this._complete(eE);
+        this._complete = null;
+     }
+     this.logger.error(eE);
 };
 
 LLRPReader.prototype.startEventCycle = function (data) {
@@ -227,10 +235,13 @@ LLRPReader.prototype.startEventCycle = function (data) {
                             self.isConnected = true;
                             if(self.logger){self.logger.info(util.format('LLRP reader %s connected', self.name));}; 
                             self.sendMessage('GET_READER_CAPABILITIES', self.getReaderCapability);
-                            self._complete(null);
+                            if(self._complete){
+                                self._complete(null);
+                                self._complete = null;
+                            }
                         } else {
                             self.isConnected = false;
-                            self._complete(new Error(util.format("Error connection to reader ip %s port %d", self.ipaddress, self.port)));
+                            self.startError(new Error(util.format("Error connection to reader ip %s port %d", self.ipaddress, self.port)));
                         }
                     }else{
                         
@@ -349,9 +360,9 @@ function decode96EPC(tagInfo, complete) {
 };
 
 LLRPReader.prototype.getdecodeEPCValues = function (antennaId) {
-    var self = this;
-    var decodeEPCValues = self.llrpObservs.getAntennaValue(antennaId, 'decodeEPCValues');
-    return decodeEPCValues? decodeEPCValues : self.decodeEPCValues;
+    var decodeEPCValues = this.llrpObservs.getAntennaValueOrDefault(antennaId, 'decodeEPCValues', this.decodeEPCValues);
+    this.logger.debug(util.format("Antenna id %d got decodeEPCValues %s", antennaId, decodeEPCValues));
+    return decodeEPCValues;
 };
 
 LLRPReader.prototype.getTagInfo = function (ts, complete) {

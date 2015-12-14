@@ -80,7 +80,7 @@ Observations.prototype.dispatch = function (complete) {
         self.qObservations.on('put', Observations.prototype.sendJob.bind(self));
         complete(null, "Observations dispatcher initialized");
       }
-    });    
+    });   
 };
 
 Observations.prototype.sendJobsPending = function () {

@@ -318,9 +318,13 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
 };
 
 Plugins.prototype.stop = function (plugIn, complete) {
-    plugIn.stop(function (err) {
-        complete(err);
-    });
+    if(plugIn){
+        plugIn.stop(function (err) {
+            complete(err);
+        });
+    }else{
+        complete(null);
+    }
 };
 
 Plugins.prototype.closeSocket = function (pluginType, complete) {

@@ -63,14 +63,8 @@ LLRPSmoothing.prototype.setSmoothing = function (smoothing) {
 };
 
 LLRPSmoothing.prototype.getAntennaSmoothing = function (antennaId) {
-    var self = this;
-    var smoothing = self.llrpObservs.getAntennaValue(antennaId, 'smoothing');
-    //isReaderSmoothing is the default value for smoothing, 
-    //if antenna has an smoothing configuration overrides isReaderSmoothing value
-    if(smoothing === undefined || smoothing === null || typeof smoothing !== "boolean"){
-        smoothing = this.isReaderSmoothing;
-        this.logger(util.format("Antenna id %d got isReaderSmoothing %s", antennaId, this.isReaderSmoothing));
-    }
+    var smoothing = this.llrpObservs.getAntennaValueOrDefault(antennaId, 'smoothing', this.isReaderSmoothing);
+    this.logger.debug(util.format("Antenna id %d got isReaderSmoothing %s", antennaId, smoothing));
     return smoothing;
 };
 
@@ -127,14 +121,8 @@ LLRPSmoothing.prototype.doSmoothing = function (tagEvents) {
 };
 
 LLRPSmoothing.prototype.getReportAmountForSmoothing = function (antennaId) {
-    var self = this;
-    var reportAmount = self.llrpObservs.getAntennaValue(antennaId, 'reportAmountForSmoothing');
-    //isReaderSmoothing is the default value for smoothing, 
-    //if antenna has an smoothing configuration overrides isReaderSmoothing value
-    if(reportAmount === undefined || reportAmount === null || typeof reportAmount !== "number"){
-        reportAmount = self.reportAmountForSmoothing;
-        this.logger(util.format("Antenna id %d got reportAmountForSmoothing %s", antennaId, this.reportAmountForSmoothing));
-    }
+    var reportAmount = this.llrpObservs.getAntennaValueOrDefault(antennaId, 'reportAmountForSmoothing', this.reportAmountForSmoothing);
+    this.logger.debug(util.format("Antenna id %d got reportAmountForSmoothing %s", antennaId, reportAmount));
     return reportAmount;
 };
 
