@@ -22,11 +22,12 @@
 var websocket = require("websocket");
 var logger = require('./logger').logger;
 var util = require('util');
-function DapWs( bc, url, onMessage, pluginName ){     
+function DapWs( bc, url, onMessage, pluginName, onError ){     
     this.bc = bc;
     this.url = url;
     this.onMessage = onMessage;
     this.pluginName = pluginName;
+    this.onError = onError;
     this.connected = false;
     this.authorization =  new Buffer(bc.dap.userId + '/' + bc.dap.tenant + ":" + bc.dap.password).toString("Base64");
     this.connection = null;
@@ -71,17 +72,6 @@ DapWs.prototype.message = function (data) {
     
 };
 
-DapWs.prototype.retry = function() {
-    var self = this;
-    if (self.reconnectInterval) {
-        clearInterval(self.reconnectInterval);
-        self.reconnectInterval = null;
-    }
-    self.reconnectInterval = setTimeout(function() {
-        self.connect();
-    }.bind(self), self.bc.networkFailed.reconnectWait);
-};
-
 DapWs.prototype.close = function (reasonCode, description) {
     logger.error( util.format("Web socket %s close %d %s", this.url, reasonCode, description));
     this.connection = null;
@@ -89,9 +79,8 @@ DapWs.prototype.close = function (reasonCode, description) {
 };
 
 DapWs.prototype.error = function (err) {
-    logger.error( util.format("Web socket url %s error %d", this.url, err));
     this.connection = null;
-    this.retry();
+    this.onError(this.url, err);
 };
 
 DapWs.prototype.endConnection = function ( complete) {

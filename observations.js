@@ -83,6 +83,19 @@ Observations.prototype.dispatch = function (complete) {
     });   
 };
 
+Observations.prototype.pauseDispatch = function () {     
+    this.qObservations.removeListener('put', Observations.prototype.sendJob.bind(this));
+};
+
+Observations.prototype.resumeDispatch = function () { 
+   sendJobsPending(); 
+   this.qObservations.on('put', Observations.prototype.sendJob.bind(this));
+};
+
+Observations.prototype.setOnError = function (onError) {
+    this.onError = onError;
+};
+
 Observations.prototype.sendJobsPending = function () {
     var self = this;
     self.qObservations.createReadStream({keyEncoding:'json',valueEncoding: 'json'})
@@ -123,12 +136,11 @@ Observations.prototype.sendJob = function (key, value, callback) {
                         logger.error('sent observation: ' + err.message);
                         if(hasCallback) callback(err);
                     } else {
-                        logger.debug(util.format("Rescheduling resending observations to %d", self.bc.networkFailed.reconnectWait));
-                        self.reconnectInterval = setInterval(function () {
-                            //self.sendJob(value, callback);
-                            self.sendJobsPending();
-                        },
-                            self.bc.networkFailed.reconnectWait);
+                        //reconnect
+                        if(self.onError){
+                            var error = new Error(util.format("Error sending observation type %s reconnectiing", value['@type']));
+                            self.onError(error.message, err);
+                        }
                     }
                 } else {
                     logger.debug('sent observation: ' + value['@type']);

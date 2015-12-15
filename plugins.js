@@ -29,14 +29,16 @@ var util = require('util');
 var dapws = require('./dapWs').DapWs;
 var clone = require('clone');
 ///amtech/push/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
-var urlDapCrud = '/amtech/push/things/events?topic=/dap/things/%s&client=%s';
+var urlDapCrud = '/amtech/push/things/events?topic=/thingcrud/%s&client=%s';
 ///amtech/push/things/commands?client=<client_id>&thingtype=<thing_type>
 var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=%s';
+var ping = require('ping');
 
 function Plugins( bc, dapClient, observs ){     
     this.bc = bc;
     this.dapClient = dapClient;
     this.observs = observs;
+    this.observs.setOnError(Plugins.prototype.errorWs.bind(this));
 }
 
 Plugins.prototype.load = function (complete) {
@@ -100,9 +102,9 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
 Plugins.prototype.addWebSockets = function (pluginName) {
     var wsDapUrl = this.bc.dap.dapUrl.replace('https', 'wss');
     var cmdUrl = wsDapUrl + util.format(urlDapCmds, this.bc.bridgeId, pluginName);
-    this.plugins.get(pluginName)['commands'] = new dapws(this.bc, cmdUrl, this.onCommand.bind(this), pluginName);
+    this.plugins.get(pluginName)['commands'] = new dapws(this.bc, cmdUrl, this.onCommand.bind(this), pluginName, this.errorWs.bind(this));
     var crudUrl = wsDapUrl + util.format(urlDapCrud, pluginName, this.bc.bridgeId);
-    this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName);
+    this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName, this.errorWs.bind(this));
 };
 
 Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance, complete ) {
@@ -350,6 +352,69 @@ Plugins.prototype.stopPlugIns = function (complete) {
                     complete(err);
                 });
     }
+};
+
+Plugins.prototype.errorWs = function (url, err) {
+    var self = this;
+    if (!self.reconnecting) {
+        self.reconnecting = true;
+        logger.error(util.format("Reconnecting after receiving error from Web Socket url %s error %s", url, err.message));
+        async.parallel([Plugins.prototype.closeWS.bind(self),
+                        self.observs.pauseDispatch.bind(self.observs)],
+            function (err) {
+                if (err) {
+                    logger.error("Error disconecting web sockets, working on reconnecting");
+                } else {
+                    var isAlive = false;
+                    async.until(
+                        isAlive,
+                        function (callback) {
+                            ping.promise.probe(this.bc.dap.dapUrl, {
+                                timeout: self.bc.networkFailed.reconnectWait
+                            }).then(function (res) {
+                                isAlive = res;
+                                callback(null, isAlive);
+                            });
+                        },
+                        function (err, res) {
+                            if (err) {
+                                logger.error(util.format("Error pinging %s trying to reconnect", this.bc.dap.dapUrl));
+                            } else if (res) {
+                                async.parallel([Plugins.prototype.reconnectWS.bind(self),
+                                    self.observs.resumeDispatch.bind(self.observs)],
+                                    function (err) {
+                                        if (err) {
+                                            logger.error("Error reconnecting web sockets or resuming observations dispatching");
+                                        } else {
+                                            logger.debug("Reconnected to AMTech DAP...");
+                                        }
+                                    });
+                            }
+                        });
+                }
+            });
+    }else{
+        logger.debug(util.format("Reconnecting after receiving error from Web Socket url %s error %s", url, err.message));
+    }
+};
+
+Plugins.prototype.closeWS = function (complete) {
+    if (this.plugins) {
+        var pluginsType = this.plugins.values();
+        async.each(pluginsType, Plugins.prototype.closeSocket.bind(this),
+                function (err) {
+                    complete(err);
+                });
+    }
+};
+
+Plugins.prototype.reconnectWS = function (complete) {
+    var self = this;
+    self.plugins = self.observs.typesConfiguration;
+    async.each(self.plugins.values(), Plugins.prototype.connectWS.bind(self),
+                            function (err) {
+                                complete(err);
+                            });       
 };
 
 Plugins.prototype.getInstances = function () {
