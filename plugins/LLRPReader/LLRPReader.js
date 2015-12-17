@@ -174,7 +174,9 @@ LLRPReader.prototype.connectReader = function ( complete) {
             //send llrperror
             var msg = util.format("LLRP reader %s timeout", self.name );
             if(self.logger){self.logger.error(msg);};
-            self.sendError(new Error(msg));
+            var err = new Error(msg);
+            self.sendError(err);
+            self.startError(err);
         });
         // connect with reader
         self.client = self.socket.connect(self.port, self.ipaddress, function () {
@@ -191,9 +193,10 @@ LLRPReader.prototype.connectReader = function ( complete) {
         });
         //cannot connect to the reader other than a timeout.
         self.client.on('error', function (err) {
-            var msg = util.format("LLRP reader %s timeout", self.name );
+            var msg = util.format("LLRP reader %s error on connection %s", self.name, err.message );
             if(self.logger){self.logger.error(msg);}  
             self.sendError(new Error(msg));
+            self.startError(err);
         });
     } catch (err) {
         self.startError(err);

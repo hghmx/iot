@@ -22,12 +22,12 @@
 var websocket = require("websocket");
 var logger = require('./logger').logger;
 var util = require('util');
-function DapWs( bc, url, onMessage, pluginName, onError ){     
+var dapReconnect = require('./reconnectDAP').reconnectDAP;
+function DapWs( bc, url, onMessage, pluginName ){     
     this.bc = bc;
     this.url = url;
     this.onMessage = onMessage;
     this.pluginName = pluginName;
-    this.onError = onError;
     this.connected = false;
     this.authorization =  new Buffer(bc.dap.userId + '/' + bc.dap.tenant + ":" + bc.dap.password).toString("Base64");
     this.connection = null;
@@ -75,12 +75,17 @@ DapWs.prototype.message = function (data) {
 DapWs.prototype.close = function (reasonCode, description) {
     logger.error( util.format("Web socket %s close %d %s", this.url, reasonCode, description));
     this.connection = null;
-    this.retry();
 };
 
 DapWs.prototype.error = function (err) {
-    this.connection = null;
-    this.onError(this.url, err);
+    this.connection = null;    
+    if(dapReconnect && !dapReconnect.reconnecting){
+        dapReconnect.reconnect(this.url, err, function(err){
+            if(err){
+                logger.error(err.message);
+            }
+        });
+    }
 };
 
 DapWs.prototype.endConnection = function ( complete) {

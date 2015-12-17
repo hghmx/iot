@@ -146,12 +146,18 @@ Bridge.prototype.run = function () {
 };
 
 Bridge.prototype.stop = function () {
-   this.plugs.stopPlugIns(function (err) {
-            if(err) throw err;
+    if (this.plugs) {
+        this.plugs.stopPlugIns(function (err) {
+            if (err)
+                throw err;
         });
-   this.observs.stopDispatch(function (err) {
-            if(err) throw err;
+    }
+    if (this.observs) {
+        this.observs.stopDispatch(function (err) {
+            if (err)
+                throw err;
         });
+    }
 };
 
 module.exports = {
