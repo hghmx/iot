@@ -30,9 +30,10 @@ var dapws = require('./dapWs').DapWs;
 var clone = require('clone');
 var dapReconnect = require('./reconnectDAP').reconnectDAP;
 ///amtech/push/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
-var urlDapCrud = '/amtech/push/things/events?topic=/thingcrud/%s&client=%s';
+//var urlDapCrud = '/amtech/push/things/events?topic=/thingcrud/%s&client=%s';
 ///amtech/push/things/commands?client=<client_id>&thingtype=<thing_type>
 var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=%s';
+var urlDapCrud = '/amtech/push/things/events?topic=%s&client=%s';
 
 
 function Plugins( bc, dapClient, observs ){     
@@ -82,7 +83,7 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
     var self = this;
     try{
         //self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:null, crud:null});   
-        self.addWebSockets(pluginConfig.name);
+        self.addWebSockets(pluginConfig.name, pluginConfig.instances.values()[0].observations);
         var plugClass = require(pluginsDir +'/' + pluginConfig.name + '/' + pluginConfig.name);
         plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
         async.each(pluginConfig.instances.values(), 
@@ -100,12 +101,19 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
     }
 };
 
-Plugins.prototype.addWebSockets = function (pluginName) {
+Plugins.prototype.addWebSockets = function (pluginName, observations) {
     var wsDapUrl = this.bc.dap.dapUrl.replace('https', 'wss');
     var cmdUrl = wsDapUrl + util.format(urlDapCmds, this.bc.bridgeId, pluginName);
     this.plugins.get(pluginName)['commands'] = new dapws(this.bc, cmdUrl, this.onCommand.bind(this), pluginName);
-    var crudUrl = wsDapUrl + util.format(urlDapCrud, pluginName, this.bc.bridgeId);
-    this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName);
+    //if observationresourcecrud is configured for the pluginName listen to web socket
+    if(observations && 
+        observations.has('observationresourcecrud') &&
+        observations.get('observationresourcecrud').topicschema){        
+        var crudUrl = wsDapUrl + util.format(urlDapCrud, observations.get('observationresourcecrud').topicschema, this.bc.bridgeId);        
+        this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName);
+    }else{
+        logger.warn(util.format("Pluging %s does not have observationresourcecrud configuration.", pluginName));
+    }
 };
 
 Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance, complete ) {
