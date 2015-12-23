@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "snmpjs": "^0.1.8"
+    "snmpjs": "https://github.com/joyent/node-snmpjs.git"
   },
   "author": "",
   "license": "Apache-2.0"
