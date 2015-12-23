@@ -1,0 +1,14 @@
+{
+  "name": "snmpdevice",
+  "version": "1.0.0",
+  "description": "Bridge SNMP prtotocl to AMTech IoT protocol",
+  "main": "SNMPDevice.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "snmpjs": "^0.1.8"
+  },
+  "author": "",
+  "license": "Apache-2.0"
+}

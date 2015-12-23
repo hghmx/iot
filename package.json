@@ -1,37 +1,56 @@
 {
-  "name": "M2MBridge",
-  "description": "",
-  "version": "0.0.1",
-  "main": "./M2MBridge.js",
-  "author": {
-    "name": "Carlos",
-    "email": "carlos@amtech.mx"
+  "name": "m2mbridge",
+  "version": "1.0.0",
+  "description": "Bridge M2M protocols to AMTech IoT Protocol",
+  "main": "M2MBridge.js",
+  "directories": {
+    "test": "test"
   },
-  "keywords": [],
-  "licenses": {
-    "type": "none"
+  "dependencies": {
+    "async": "^1.5.0",
+    "hashmap": "^2.0.4",
+    "clone": "^1.0.2",
+    "extfs": "^0.0.7",
+    "level": "^1.4.0",
+    "leveldown": "^1.4.2",
+    "levelup": "^1.3.1",
+    "moment": "^2.10.6",
+    "ping": "^0.1.10",
+    "restler": "^3.4.0",
+    "simple-spinner": "^0.0.5",
+    "sliced": "^1.0.1",
+    "string.prototype.endswith": "^0.2.0",
+    "util": "^0.10.3",
+    "uuid": "^2.0.1",
+    "websocket": "^1.0.22",
+    "winston": "^2.0.0",
+    "snmpjs": "^0.1.8",
+    "node-epc" : "0.1.0",
+    "java": "^0.6.0",
+    "node-java-maven": "^0.0.9"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/YOUR_LOGIN/M2MBridge.git"
+    "url": "git+https://github.com/AMTechMX/M2MBridge.git"
   },
+  "keywords": [
+    "IoT",
+    "M2M",
+    "Semantic",
+    "linked",
+    "data",
+    "RDF",
+    "Big",
+    "Data"
+  ],
+  "author": "Carlos",
+  "license": "Apache-2.0",
   "bugs": {
-    "url": "http://github.com/YOUR_LOGIN/M2MBridge/issues"
+    "url": "https://github.com/AMTechMX/M2MBridge/issues"
   },
-  "scripts": {
-    "test": "node test/plugins/pluginsInterfaceTests.js"
-  },
-  "dependencies": {
-    "assert": "^1.3.0",
-    "async": "^1.5.0",
-    "clone": "^1.0.2",
-    "extfs": "0.0.7",
-    "hashmap": "^2.0.4",
-    "node-epc": "^0.1.0",
-    "restler": "^3.4.0",
-    "simple-spinner": "0.0.5",
-    "tinq": "0.0.2",
-    "websocket": "^1.0.22",
-    "winston": "^2.0.0"
-  }
+  "homepage": "https://github.com/AMTechMX/M2MBridge#readme"
 }

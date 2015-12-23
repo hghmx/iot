@@ -1,0 +1,22 @@
+{
+  "name": "llrpreader",
+  "version": "1.0.0",
+  "description": "Bridge llrp protocol to AMTech IoT protocol",
+  "main": "LLRPReader.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },  
+  "dependencies": {
+    "node-epc" : "0.1.0",
+    "java": "^0.6.0",
+    "node-java-maven": "^0.0.9"
+  },
+  
+  "keywords": [
+    "llrp",
+    "IoT",
+    "AMTech"
+  ],
+  "author": "",
+  "license": "Apache-2.0"
+}
