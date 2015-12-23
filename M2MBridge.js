@@ -47,7 +47,7 @@ function done(err, results) {
         process.on('SIGINT', exitHandler.bind(null, {exit:true, exitCode:2}));
         process.on('uncaughtException', exitHandler.bind(null, {exit:false, exitCode:99}));
 
-        logger.info(m2mB.bc.description + ' id: ' + m2mB.bridgeId.bridgeId + ' started with parameters...'); 
+        logger.info(m2mB.bc.description + ' id: ' + m2mB.bridgeId + ' started with parameters...'); 
         var cnfgShow = extend({}, m2mB.bc);
         delete cnfgShow['dap']['password'];
         logger.info(util.inspect(cnfgShow)); 
