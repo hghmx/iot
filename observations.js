@@ -52,8 +52,12 @@ Observations.prototype.getConfiguration = function (complete) {
                     var pluginsType = config.values();
                     for (var i = 0; i < pluginsType.length; i++) {
                         if (pluginsType[i].instances.values().length === 0) {
-                            complete(new Error(util.format('The M2MBridge with user id %s has no instances for plugin type %s'
-                                    , _self.bc.dap.userId, _self.getResourceName(pluginsType[i].id))));
+                            config.remove(pluginsType[i].name);
+                            logger.warn(util.format(
+                                'The M2MBridge with user id %s has no instances for plugin type %s' , _self.bc.dap.userId, _self.getResourceName(pluginsType[i].id)));
+                            
+//                            complete(new Error(util.format('The M2MBridge with user id %s has no instances for plugin type %s'
+//                                    , _self.bc.dap.userId, _self.getResourceName(pluginsType[i].id))));
                         }
                     }
                     _self.typesConfiguration = config;
@@ -184,6 +188,15 @@ Observations.prototype.sendJob = function (key, value, callback) {
 
 Observations.prototype.send = function (observation) {
     var self = this;
+    if(this.bc.guestSecurity){ 
+        if(this.bc.guestSecurity.guesttenants && this.bc.guestSecurity.guesttenants.length > 0){
+            observation.guesttenants = 
+                observation.guesttenants.concat(this.bc.guestSecurity.guesttenants);
+        }
+        if(this.bc.guestSecurity.guestusers && this.bc.guestSecurity.guestusers.length > 0){
+            observation.guestusers.concat(this.bc.guestSecurity.guestusers);
+        }       
+    }
     self.qObservations.put(uuid.v4(), observation, {keyEncoding:'json',valueEncoding: 'json'},function (err) {
         if (err) {
             logger.error(err);

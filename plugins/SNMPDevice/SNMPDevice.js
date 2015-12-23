@@ -323,7 +323,7 @@ SNMPDevice.prototype.newSnmpRead = function (getOIDs) {
             "targetthings": "[]",
             "location": "",
             "description": "",
-            "guesttenants": ["m2mcreator"],
+            "guesttenants": [],
             "@type": "/amtech/linkeddata/types/composite/observation/snmpRead",
             "producer": "",
             "detectiontime": "2015-10-24T15:30:07.000Z",

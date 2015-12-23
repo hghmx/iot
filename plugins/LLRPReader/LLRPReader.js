@@ -483,7 +483,6 @@ LLRPReader.prototype.buildAndSend = function (tagsInfo) {
     var self = this;
     self.logger.debug("---------------------Sending observations-------------------");
     observations.forEach(function( obsrv){
-            obsrv.guesttenants = ["m2mcreator"];
             if(self.sendObservation){
                 self.sendObservation(obsrv);
             }else{
@@ -495,7 +494,6 @@ LLRPReader.prototype.buildAndSend = function (tagsInfo) {
 LLRPReader.prototype.sendError = function (error) {
     var llrpError = this.llrpObservs.getErrorObservations(error);
     if(this.sendObservation){
-        llrpError.guesttenants = ["m2mcreator"];
         this.sendObservation(llrpError);
     }else{
         this.logger.debug(util.format("Error observation data \n json: %s", JSON.stringify(llrpError, undefined, 4)));
