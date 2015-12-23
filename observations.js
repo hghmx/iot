@@ -171,7 +171,7 @@ Observations.prototype.sendJob = function (key, value, callback) {
                             if (hasCallback)
                                 callback(err);
                         } else {
-                            logger.debug(util.format("Completed and deleted job id %s observation type: %s", key, value['@type']));
+                            logger.debug(util.format("Completed and deleted job id %s observation type: %s to topic %s", key, value['@type'], value['topic']));
                             if (hasCallback)
                                 callback(null);
                         }
@@ -194,7 +194,8 @@ Observations.prototype.send = function (observation) {
                 observation.guesttenants.concat(this.bc.guestSecurity.guesttenants);
         }
         if(this.bc.guestSecurity.guestusers && this.bc.guestSecurity.guestusers.length > 0){
-            observation.guestusers.concat(this.bc.guestSecurity.guestusers);
+            observation.guestusers=
+                observation.guestusers.concat(this.bc.guestSecurity.guestusers);
         }       
     }
     self.qObservations.put(uuid.v4(), observation, {keyEncoding:'json',valueEncoding: 'json'},function (err) {
