@@ -522,10 +522,14 @@ LLRPReader.prototype.command = function (observation, complete) {
             //send llrp kill command
         }else if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/epcWrite"){
             //send llrp write command
-        }else if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/epcGPIO"){
-            //send llrp gpio
+        }else if(observation["@type"] === "/amtech/linkeddata/types/composite/observation/gpoWriteDataEPC"){
+            //send llrp GPOWriteData
+            var gpoWriteData = java.newInstanceSync('org.llrp.ltk.generated.parameters.GPOWriteData');
+            gpoWriteData.setGPOPortNumber(observation.GPOPortNumber);
+            gpoWriteData.setGPOData(observation.GPOData);
+            this.sendMessage('GPOWriteData', gpoWriteData);
         }else{
-            complete(new Error("LLRPReader support commands of observations type epcKill, epcWrite and epcGPIO"));
+            complete(new Error("LLRPReader support commands of observations type epcKill, epcWrite and gpoWriteDataEPC"));
         }
     } catch (e) {
         complete(e);

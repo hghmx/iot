@@ -257,28 +257,29 @@ Observations.prototype.getPluginTypeInstances = function (cnfg, config, complete
         userId: this.bc.dap.userId,
         typeId: plugName};
 
-    config.properties.members.forEach(function (property) {
-        properties.set(property._name, {name: property._name, value: property.propertyvalue});
-    });
-
+    if(config.properties.members){ 
+        config.properties.members.forEach(function (property) {
+            properties.set(property._name, {name: property._name, value: property.propertyvalue});
+        });
+    };
     config.observationsproducedconfig.members.forEach(function (observation) {
-        var tt = [];
-        if (observation.thingsconfig && Array.isArray(observation.thingsconfig)) {
-            observation.thingsconfig.forEach(function (targetThing) {
-                targetThing.resourceId = _self.fillTypePlaceholder(targetThing.resourceId, placeHolders);
-                tt.push({thingType: targetThing.resourcetype, thingsId: [targetThing.resourceId]});
-            });
-        } else {
-            tt.push({thingType: config.entitytype, thingsId: ['#{thingId}']});
-        }
-        observations.set(observation._name, {name: observation._name,
-            topicschema: observation.topicschema ?
-                    _self.fillTypePlaceholder(observation.topicschema, placeHolders) :
-                    util.format('m2mBridge/%s/#{thingId}', plugName),
-            producerschema: observation.producerschema ?
-                    _self.fillTypePlaceholder(observation.producerschema, placeHolders) : config._name,
-            thingsconfig: JSON.stringify(tt)});
-    });
+            var tt = [];
+            if (observation.thingsconfig && Array.isArray(observation.thingsconfig)) {
+                observation.thingsconfig.forEach(function (targetThing) {
+                    targetThing.resourceId = _self.fillTypePlaceholder(targetThing.resourceId, placeHolders);
+                    tt.push({thingType: targetThing.resourcetype, thingsId: [targetThing.resourceId]});
+                });
+            } else {
+                tt.push({thingType: config.entitytype, thingsId: ['#{thingId}']});
+            }
+            observations.set(observation._name, {name: observation._name,
+                topicschema: observation.topicschema ?
+                        _self.fillTypePlaceholder(observation.topicschema, placeHolders) :
+                        util.format('m2mBridge/%s/#{thingId}', plugName),
+                producerschema: observation.producerschema ?
+                        _self.fillTypePlaceholder(observation.producerschema, placeHolders) : config._name,
+                thingsconfig: JSON.stringify(tt)});
+        });
 
     cnfg.set(plugName, {name: plugName, id: config['entitytype'], properties: properties, instances: new hashMap()});
     
