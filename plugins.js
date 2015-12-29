@@ -85,7 +85,8 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
         //self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:null, crud:null});   
         self.addWebSockets(pluginConfig.name, pluginConfig.instances.values()[0].observations);
         var plugClass = require(pluginsDir +'/' + pluginConfig.name + '/' + pluginConfig.name);
-        plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
+        //plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
+        plugClass[ pluginConfig.name].prototype['sendObservation'] = self.sendObservation.bind(self);
         async.each(pluginConfig.instances.values(), 
             async.apply(Plugins.prototype.newInstance.bind(this), 
                         plugClass, pluginConfig.name),
@@ -100,6 +101,29 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
         complete(e);
     }
 };
+
+Plugins.prototype.sendObservation = function (pginInstance, observation) {   
+    //get plugin instance
+    var pluginName = this.observs.getResourceName(pginInstance['@type']);
+    var instanceId = this.observs.getResourceName(pginInstance['@id']);
+    var thingInstance = this.plugins.get(pluginName).instances.get(instanceId).config;
+    
+    //No producer set default...
+    if(!observation.producer || observation.producer.length<=0){
+        observation.producer = instanceId;
+    }
+    
+    //No location set default...
+    if(!observation.location || observation.location.length<=0){
+        if(thingInstance.location && thingInstance.location.length>0){
+            observation.location = thingInstance.location;
+        }else if(this.bc.location){
+            observation.location = this.bc.location;
+        }
+    }
+    this.observs.send(observation);
+};
+
 
 Plugins.prototype.addWebSockets = function (pluginName, observations) {
     var wsDapUrl = this.bc.dap.dapUrl.replace('https', 'wss');
@@ -123,6 +147,9 @@ Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance,
         this.validateInterface(pluginName, newPlugin); 
         var context = { bc: self.bc,    observationsCnfg:pluginInstance.observations, 
                         thingInstance: pluginInstance.config, logger : logger };
+        //inject jsonld properties
+        newPlugin['@id'] =pluginInstance.config['@id'];
+        newPlugin['@type']=pluginInstance.config['@type'];
         
         newPlugin.start(context, function (err) {
             if (err) {

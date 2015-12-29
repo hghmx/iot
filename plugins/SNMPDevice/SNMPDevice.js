@@ -60,12 +60,6 @@ SNMPDevice.prototype.start = function ( context, complete) {
         self.observationsCnfg = context.observationsCnfg;
         
         self.logger = context.logger;
-        
-        if(context.thingInstance.location && context.thingInstance.location.length>0){
-            self.location = context.thingInstance.location;
-        }else if(context.bc.location){
-            self.location = context.bc.location;
-        }
 
         if (context.thingInstance.getOIDs || context.thingInstance.getOIDs.length > 0) {
             self.getOIDs = JSON.parse(context.thingInstance.getOIDs);
@@ -127,7 +121,7 @@ SNMPDevice.prototype.sendGetResults = function () {
     if (this.getResults) {
         //send getResults observation
         var snmpRead = this.newSnmpRead(this.getResults);
-        this.sendObservation(snmpRead);
+        this.sendObservation(this, snmpRead);
         this.getResults = [];
     }
 };
@@ -247,6 +241,7 @@ SNMPDevice.prototype.setTrapListener = function () {
             }
             variableBinds = JSON.stringify(ms.pdu.varbinds);
             var newSnmpTrup = self.newSnmpTrup(trapOID, trapTimeTicks, variableBinds);
+            self.sendObservation(self, newSnmpTrup);
         }
         if(self.logger){ self.logger.debug(snmp.message.serializer(msg))};
     });

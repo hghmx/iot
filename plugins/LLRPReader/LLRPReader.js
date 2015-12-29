@@ -95,7 +95,13 @@ LLRPReader.prototype.start = function (context, complete) {
         this.port = context.thingInstance.port;
         this.ipaddress = context.thingInstance.ipaddress;
         this.observationsCnfg = context.observationsCnfg;
-        this.location = context.bc.location;        
+        
+        if(context.thingInstance.location && context.thingInstance.location.length>0){
+            this.location = context.thingInstance.location;
+        }else if(context.bc.location){
+            this.location = context.bc.location;
+        }
+        
         this.name = context.thingInstance._name;
         this.urn = context.thingInstance["@id"]; 
         if(context.logger){
@@ -484,7 +490,7 @@ LLRPReader.prototype.buildAndSend = function (tagsInfo) {
     self.logger.debug("---------------------Sending observations-------------------");
     observations.forEach(function( obsrv){
             if(self.sendObservation){
-                self.sendObservation(obsrv);
+                self.sendObservation(self, obsrv);
             }else{
                 self.logger.debug(util.format("Observation tag data %s \n json%s", obsrv.epcString, JSON.stringify(obsrv, undefined, 4)));
             }
@@ -494,7 +500,7 @@ LLRPReader.prototype.buildAndSend = function (tagsInfo) {
 LLRPReader.prototype.sendError = function (error) {
     var llrpError = this.llrpObservs.getErrorObservations(error);
     if(this.sendObservation){
-        this.sendObservation(llrpError);
+        this.sendObservation(this, llrpError);
     }else{
         this.logger.debug(util.format("Error observation data \n json: %s", JSON.stringify(llrpError, undefined, 4)));
     }
