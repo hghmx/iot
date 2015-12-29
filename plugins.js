@@ -192,7 +192,9 @@ Plugins.prototype.onCommand = function (pluginName, observation, complete) {
                         self.plugins.get(pluginName).instances.get(instanceId).instance.command(observation, 
                         function(err){
                             if(err){
-                                self.sendPluginError(pluginName, err);
+                                if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                                    self.sendPluginError(pluginName, err);
+                                }
                                 complete(err);
                             }
                         } );
@@ -201,7 +203,9 @@ Plugins.prototype.onCommand = function (pluginName, observation, complete) {
                         var err = new Error( 
                             util.format("Command has ben sent to a plugin %s with an unknown intance %s"
                                 , pluginName, instanceId));
-                        self.sendPluginError(pluginName, err);
+                        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                            self.sendPluginError(pluginName, err);
+                        }
                         complete(err);
                     }
                 });
@@ -209,15 +213,19 @@ Plugins.prototype.onCommand = function (pluginName, observation, complete) {
                 var err = new Error( 
                     util.format("Command has ben sent to an unknown plugin  %s"
                         , pluginName));
-                self.sendPluginError(pluginName, err);
+                if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                    self.sendPluginError(pluginName, err);
+                }                
                 complete(err);
             }
         });
         complete(null);
     }else{
-        var err = new Error("Command has been sent withou a targetthings property");
+        var err = new Error("Command has been sent without a targetthings property");
         //send error
-        this.sendPluginError(pluginName, err);
+        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+            self.sendPluginError(pluginName, err);
+        }        
         complete(err);
     }
 };
@@ -240,7 +248,9 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
                 async.apply(plugIn.start.bind(plugIn), context)],
                 function (err) {
                     if (err) {
-                        self.sendPluginError(id, err);
+                        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                            self.sendPluginError(id, err);
+                        }                              
                         complete(err);
                     } else {
                         logger.debug(util.format("Updated plugIn %s last modified at %s property %s from %s to %s"),
@@ -260,7 +270,10 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
                     logger.error(util.format("Error Getting a new  plugin %s id %s information error: %s", pluginName,
                         self.observs.getResourceName(observation['resourceuri']), err.message));
                     //send error
-                    self.sendPluginError(pluginName, err);
+                    if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                        self.sendPluginError(pluginName, err);
+                    }
+                    complete(err);
                 } else {
                     try {
                         var pluginName = self.observs.getResourceName(instance['@type']);
@@ -279,7 +292,10 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
                                         logger.error(util.format("Error starting a new  plugin %s id %s information error: %s", pluginName,
                                             self.observs.getResourceName(observation['resourceuri']), err.message));
                                         //send error
-                                        self.sendPluginError(pluginName, err);
+                                        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                                            self.sendPluginError(pluginName, err);
+                                        } 
+                                        complete(err);
                                     } else {
                                         logger.debug(util.format("Created a new  plugin type %s with id", pluginName, id));
                                     }
@@ -289,7 +305,11 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
                     } catch (err) {
                         logger.error(util.format("Error Creating a new  plugin %s id %s information error: %s", pluginName,
                             self.observs.getResourceName(observation['resourceuri']), err.message));
-                        self.sendPluginError(pluginName, err);
+                            
+                        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                            self.sendPluginError(pluginName, err);
+                        } 
+                        complete(err);
                     }
                 }
                 complete(null);
@@ -315,7 +335,10 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
                     if (err) {
                         logger.error(util.format("Error Deleting a plugin %s id %s error: %s", pluginName, id, err.message));
                         //send error
-                        this.sendPluginError(pluginName, err);
+                        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+                            self.sendPluginError(pluginName, err);
+                        } 
+                        complete(err);
                     } else {
                         logger.debug(util.format("Delete a plugin type %s with id", pluginName, id));
                     }

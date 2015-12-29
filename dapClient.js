@@ -22,6 +22,7 @@
 var rest = require('restler');
 var baseUrl = '/amtech';
 var observationsUrl = baseUrl + '/things/events';
+var newInstanceUrl = baseUrl + '/things/entities';
 var getConfigUrl = baseUrl + '/system/queries/observationconfigfromactivities';
 var getPluginInstances = baseUrl + '/observersexec/amtech/observers/getThingsByType';
 var geoUrl = baseUrl + '/geo/address';
@@ -151,6 +152,25 @@ DapClient.prototype.getBoxLocation = function (address, complete) {
                             + data['messageDetail'] + ")"));
                 } else {
                     complete(null, data.results);
+                }
+            });
+};
+
+DapClient.prototype.newInstance = function (newInstance, complete) {
+   var self = this;
+    var options = self._options();
+    rest.postJson(self.dapUrl + newInstanceUrl, newInstance, options).on(
+            'complete',
+            function(data, response) {
+                if (response.statusCode !== 200) {
+                    complete(self.buildError(response, "Creating new Instance"));
+                } else if (data instanceof Error) {
+                    complete(data);
+                } else if (data['success'] === false) {
+                    complete(new Error(data['message'] + " (detail: "
+                            + data['messageDetail'] + ")"), data);
+                } else {
+                    complete();
                 }
             });
 };

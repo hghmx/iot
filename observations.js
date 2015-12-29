@@ -43,29 +43,45 @@ Observations.prototype.getConfiguration = function (complete) {
             complete(err);
         } else {
             if (results.length === 0) {
-                complete(new Error(util.format('The M2MBridge with user id %s has no configuration', _self.bc.dap.userId)));
+                complete(new Error(util.format('The M2MBridge user id %s has no configuration', _self.bc.dap.userId)));
             }
-            _self.generateSensorConfig(results, function (err, config) {
-                if (err) {
-                    complete(err);
-                } else {
-                    var pluginsType = config.values();
-                    for (var i = 0; i < pluginsType.length; i++) {
-                        if (pluginsType[i].instances.values().length === 0) {
-                            config.remove(pluginsType[i].name);
-                            logger.warn(util.format(
-                                'The M2MBridge with user id %s has no instances for plugin type %s' , _self.bc.dap.userId, _self.getResourceName(pluginsType[i].id)));
-                            
-//                            complete(new Error(util.format('The M2MBridge with user id %s has no instances for plugin type %s'
-//                                    , _self.bc.dap.userId, _self.getResourceName(pluginsType[i].id))));
-                        }
+            //Auto discovery...
+            if(_self.bc.autoDiscover && _self.bc.autoDiscover.execute){                
+                async.series([ async.apply( Observations.prototype.doAutoDiscovery.bind(_self), results),
+                               async.apply( Observations.prototype.generateSensorConfig.bind(_self), results)],
+                               function(err, results){
+                                    if (err) {
+                                        complete(err);
+                                    } else {
+                                        _self.setTypesConfiguration(results[1], complete);
+                                    }    
+                            });
+            }else{
+                _self.generateSensorConfig(results, function (err, config) {
+                    if (err) {
+                        complete(err);
+                    } else {
+                        _self.setTypesConfiguration(config, complete);
                     }
-                    _self.typesConfiguration = config;
-                    complete(null, "Retrieved Things types and instances information");
-                }
-            });
+                });
+            }
         }
     });
+};
+
+Observations.prototype.setTypesConfiguration = function ( config, complete) {
+    var _self = this;
+    var pluginsType = config.values();
+    for (var i = 0; i < pluginsType.length; i++) {
+        if (pluginsType[i].instances.values().length === 0) {
+            config.remove(pluginsType[i].name);
+            logger.warn(util.format(
+                'The M2MBridge with user id %s has no instances for plugin type %s' ,
+                            _self.bc.dap.userId, _self.getResourceName(pluginsType[i].id)));
+        }
+    }
+    _self.typesConfiguration = config;
+    complete(null, "Retrieved Things types and instances information");    
 };
 
 Observations.prototype.stopDispatch = function (complete) {
@@ -320,6 +336,50 @@ Observations.prototype.getPluginTypeInstances = function (cnfg, config, complete
 
 Observations.prototype.getResourceName = function (typeurl) {
     return (typeurl) ? typeurl.substr(typeurl.lastIndexOf("/") + 1) : undefined;
+};
+
+Observations.prototype.doAutoDiscovery = function (jsonCnfg, complete) {
+    var self = this;
+    if( !this.bc.autoDiscover.instances){
+        complete(new Error("Auto discovery configuration set to execute, but havenot instances set"));
+    }
+    var postInstances = [];
+    jsonCnfg.forEach(function( config){
+        var plugName = self.getResourceName(config.entitytype);
+        if( self.bc.autoDiscover.instances[plugName]){    
+            postInstances = postInstances.concat(self.bc.autoDiscover.instances[plugName].instances);
+        }else{
+            logger.warn(util.format("Plugin type  %s has no instances set for auto discovering" , plugName));            
+        }
+    });
+    if(postInstances.length > 0){
+        async.each(postInstances, Observations.prototype.newInstance.bind(self),
+            function (err) {
+                if (err) {
+                    complete(err);
+                } else {
+                    complete(null);
+                }
+            });        
+    }else{
+        complete(null);
+    }
+};
+
+Observations.prototype.newInstance = function (ni, complete) {
+    this.dapClient.newInstance(ni,function (err, data) {
+                if (err) {
+                    if(data.errorType=== "amtech.utils.model.ResourceAlreadyExistException"){    
+                        logger.info(util.format("Plugin type %s instance id %s already exist" , ni['@type'], ni['@id']));
+                        complete(null);
+                    }else{
+                        complete(err);
+                    }
+                } else {
+                    logger.info(util.format("Plugin type %s instance id %s created" , ni['@type'], ni['@id']));
+                    complete(null);
+                }
+            }); 
 };
 
 module.exports = {

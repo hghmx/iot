@@ -3,3 +3,6 @@ bridgeConfig.json
 .DS_Store
 .project
 .settings
+/plugins/LLRPReader/node_modules/
+/plugins/SNMPDevice/node_modules/
+/data/

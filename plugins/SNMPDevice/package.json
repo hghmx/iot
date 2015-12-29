@@ -9,6 +9,13 @@
   "dependencies": {
     "snmpjs": "https://github.com/joyent/node-snmpjs.git"
   },
+  
+"keywords": [
+    "snmp",
+    "IoT",
+    "AMTech"
+  ],  
+  
   "author": "",
   "license": "Apache-2.0"
 }
