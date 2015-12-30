@@ -202,18 +202,30 @@ Observations.prototype.sendJob = function (key, value, callback) {
     }
 };
 
-Observations.prototype.send = function (observation) {
-    var self = this;
+Observations.prototype.setSecurity = function (resource) {
     if(this.bc.guestSecurity){ 
         if(this.bc.guestSecurity.guesttenants && this.bc.guestSecurity.guesttenants.length > 0){
-            observation.guesttenants = 
-                observation.guesttenants.concat(this.bc.guestSecurity.guesttenants);
+            resource.guesttenants = 
+                resource.guesttenants.concat(this.bc.guestSecurity.guesttenants);
         }
         if(this.bc.guestSecurity.guestusers && this.bc.guestSecurity.guestusers.length > 0){
-            observation.guestusers=
-                observation.guestusers.concat(this.bc.guestSecurity.guestusers);
+            resource.guestusers=
+                resource.guestusers.concat(this.bc.guestSecurity.guestusers);
         }       
+    } 
+    return resource;
+};
+
+Observations.prototype.setLocation = function (resource) {
+    if(!resource.location || resource.location.length<=0 && this.bc.location){
+        resource.location = this.bc.location;
     }
+    return resource;
+};
+
+Observations.prototype.send = function (observation) {
+    var self = this;
+    observation = self.setSecurity(observation);
     self.qObservations.put(uuid.v4(), observation, {keyEncoding:'json',valueEncoding: 'json'},function (err) {
         if (err) {
             logger.error(err);
@@ -341,13 +353,13 @@ Observations.prototype.getResourceName = function (typeurl) {
 Observations.prototype.doAutoDiscovery = function (jsonCnfg, complete) {
     var self = this;
     if( !this.bc.autoDiscover.instances){
-        complete(new Error("Auto discovery configuration set to execute, but havenot instances set"));
+        complete(new Error("Auto discovery configuration set to execute, but have not instances set"));
     }
     var postInstances = [];
     jsonCnfg.forEach(function( config){
         var plugName = self.getResourceName(config.entitytype);
         if( self.bc.autoDiscover.instances[plugName]){    
-            postInstances = postInstances.concat(self.bc.autoDiscover.instances[plugName].instances);
+            postInstances = postInstances.concat(self.bc.autoDiscover.instances[plugName]);
         }else{
             logger.warn(util.format("Plugin type  %s has no instances set for auto discovering" , plugName));            
         }
@@ -367,19 +379,21 @@ Observations.prototype.doAutoDiscovery = function (jsonCnfg, complete) {
 };
 
 Observations.prototype.newInstance = function (ni, complete) {
-    this.dapClient.newInstance(ni,function (err, data) {
-                if (err) {
-                    if(data.errorType=== "amtech.utils.model.ResourceAlreadyExistException"){    
-                        logger.info(util.format("Plugin type %s instance id %s already exist" , ni['@type'], ni['@id']));
-                        complete(null);
-                    }else{
-                        complete(err);
-                    }
-                } else {
-                    logger.info(util.format("Plugin type %s instance id %s created" , ni['@type'], ni['@id']));
-                    complete(null);
-                }
-            }); 
+    ni = this.setSecurity(ni);
+    ni = this.setLocation(ni);    
+    this.dapClient.newInstance(ni, function (err, data) {
+        if (err) {
+            if (data.errorType === "amtech.utils.model.ResourceAlreadyExistException") {
+                logger.info(util.format("Plugin type %s instance id %s already exist", ni['@type'], ni['@id']));
+                complete(null);
+            } else {
+                complete(err);
+            }
+        } else {
+            logger.info(util.format("Plugin type %s instance id %s created", ni['@type'], ni['@id']));
+            complete(null);
+        }
+    });
 };
 
 module.exports = {
