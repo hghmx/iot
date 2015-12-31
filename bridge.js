@@ -54,7 +54,7 @@ Bridge.prototype.init = function (complete) {
             fs.writeFile(bridgeId, JSON.stringify({bridgeId: uuid.v4()}), 'utf8',
                     function (e) {
                         if (e) {
-                            done(e)
+                            done(e);
                         }else{
                             done(null);
                         }
