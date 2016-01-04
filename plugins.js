@@ -32,7 +32,7 @@ var dapReconnect = require('./reconnectDAP').reconnectDAP;
 ///amtech/push/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
 //var urlDapCrud = '/amtech/push/things/events?topic=/thingcrud/%s&client=%s';
 ///amtech/push/things/commands?client=<client_id>&thingtype=<thing_type>
-var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=%s';
+var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=/amtech/linkeddata/types/composite/entity/%s';
 var urlDapCrud = '/amtech/push/things/events?topic=%s&client=%s';
 
 
