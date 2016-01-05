@@ -27,12 +27,14 @@ function MQTT() {
 /**
  * Method called from the bridge at starting time. It's used to initialize the plugin and receive the initial configuration.
  * 
- * @param bc bridge instance
- * @param thingTypeCnfg info
- * @param thingInfo details
- * @param complete function 
+ * @param context{  
+ *  bc config object instance
+ *  observationsCnfg plugin production configuration information,
+ *  thingInstance plugin thinh type instance,
+ *  logger logger object instance}
+ *  complete function 
  */
-MQTT.prototype.start = function (bc, thingTypeCnfg, thingInfo, complete) {
+MQTT.prototype.start = function function (context, complete){
 	logger.debug("Starting MQTT plugin");
     try {
         var self = this;
@@ -56,21 +58,7 @@ MQTT.prototype.stop = function (complete) {
 };
 
 /**
- * Method called from the bridge to propagate an observation or a list of observations.
- * 
- * @param observation update
- * @param complete function
- */
-MQTT.prototype.update = function (observation, complete) {
-    try {
-        var self = this;
-    } catch (e) {
-        complete(e);
-    }
-};
-
-/**
- * 
+ * Method called from the bridge when a command has been sent to a plugin instance
  * 
  * @param observation
  * @param complete
@@ -82,6 +70,5 @@ MQTT.prototype.command = function (observation, complete) {
         complete(e);
     }
 };
-
 
 module.exports.MQTT = MQTT;
