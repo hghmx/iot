@@ -234,6 +234,9 @@ LLRPReader.prototype.connectReader = function (complete) {
                         var err = new Error(msg);
                         self.sendError(err);
                         self.startError(err);
+                        if(self.isConnected){
+                            self.restartPlugIn(self);
+                        }
                     });
                     // connect with reader
                     self.client = self.socket.connect(self.port, self.ipaddress, function () {

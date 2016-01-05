@@ -53,7 +53,7 @@ DapClient.prototype.sendObservation = function (observation, complete) {
     rest.postJson(self.dapUrl + observationsUrl, observation, options).on(
             'complete',
             function(data, response) {
-                if (response.statusCode !== 200) {
+                if (response && response.statusCode && response.statusCode !== 200) {
                     complete(self.buildError(response, "Sending observation"));
                 } else if (data instanceof Error) {
                     complete(data);
@@ -82,7 +82,7 @@ DapClient.prototype.getConfiguration = function (complete) {
     rest.get(self.dapUrl + getConfigUrl, options).on(
         'complete',
         function (data, response) {
-            if (response.statusCode !== 200) {
+            if (response && response.statusCode && response.statusCode !== 200) {
                 complete(self.buildError(response, "Getting observation production configuration"));
             } else if (data instanceof Error) {
                 complete(data);
@@ -103,7 +103,7 @@ DapClient.prototype.getPluginsInstances = function (pluginType, complete) {
     rest.get(self.dapUrl + getPluginInstances, options).on(
         'complete',
         function (data, response) {
-            if (response.statusCode !== 200) {
+            if (response && response.statusCode && response.statusCode !== 200) {
                 complete(self.buildError(response, "Getting plugins instances"));
             } else if (data instanceof Error) {
                 complete(data);
@@ -124,7 +124,7 @@ DapClient.prototype.getThing = function ( url, complete) {
     rest.get(self.dapUrl + url, options).on(
         'complete',
         function (data, response) {
-            if (response.statusCode !== 200) {
+            if (response && response.statusCode && response.statusCode !== 200) {
                 complete(self.buildError(response, "Getting a plugging instance"));
             } else if (data instanceof Error) {
                 complete(data);
@@ -143,7 +143,7 @@ DapClient.prototype.getBoxLocation = function (address, complete) {
     rest.postJson(self.dapUrl + geoUrl, address, options).on(
             'complete',
             function (data, response) {
-                if (response.statusCode !== 200) {
+                if (response && response.statusCode && response.statusCode !== 200) {
                     complete(self.buildError(response, "Getting bridge location"));
                 } else if (data instanceof Error) {
                     complete(data);
@@ -162,7 +162,7 @@ DapClient.prototype.newInstance = function (newInstance, complete) {
     rest.postJson(self.dapUrl + newInstanceUrl, newInstance, options).on(
             'complete',
             function(data, response) {
-                if (response.statusCode !== 200) {
+                if (response && response.statusCode && response.statusCode !== 200) {
                     complete(self.buildError(response, "Creating new Instance"));
                 } else if (data instanceof Error) {
                     complete(data);

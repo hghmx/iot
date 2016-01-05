@@ -87,6 +87,7 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
         var plugClass = require(pluginsDir +'/' + pluginConfig.name + '/' + pluginConfig.name);
         //plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
         plugClass[ pluginConfig.name].prototype['sendObservation'] = self.sendObservation.bind(self);
+        plugClass[ pluginConfig.name].prototype['restartPlugIn'] = self.restartPlugIn.bind(self);
         async.each(pluginConfig.instances.values(), 
             async.apply(Plugins.prototype.newInstance.bind(this), 
                         plugClass, pluginConfig.name),
@@ -434,6 +435,41 @@ Plugins.prototype.getInstances = function () {
         });
     });
     return instances;
+};
+
+Plugins.prototype.restartPlugIn = function (pginInstance) {
+    var self = this;
+    process.nextTick(function () {
+        //get plugin instance
+        var pluginName = self.observs.getResourceName(pginInstance['@type']);
+        var instanceId = self.observs.getResourceName(pginInstance['@id']);
+        var pluginInstance = self.plugins.get(pluginName).instances.get(instanceId).instance;
+        var observationsCnfg = self.plugins.get(pluginName).instances.get(instanceId).observations;
+        var thingInstance = self.plugins.get(pluginName).instances.get(instanceId).config; 
+        
+        pluginInstance.stop(function(err){
+            if(err){
+                logger.error(util.format("At stopping for restarting plugin %s id %s error: %s", pluginName, instanceId, err.message));
+            }else{
+                var restartInterval = 
+                    setInterval(function () {
+                        var context = {bc: self.bc, 
+                            observationsCnfg: observationsCnfg,
+                            thingInstance: thingInstance, 
+                            logger: logger};
+                        pluginInstance.start(context, function(err){
+                            if(!err){
+                                clearInterval(restartInterval);
+                                logger.debug(util.format("Restarted plugin %s id %s successfully", pluginName, instanceId));
+                            }else{
+                                logger.error(util.format("At starting for restarting plugin %s id %s error: %s", pluginName, instanceId, err.message));
+                            }
+                        });},  
+                        self.bc.networkFailed.reconnectWait);      
+            }
+
+        }); 
+    });
 };
 
 module.exports = {

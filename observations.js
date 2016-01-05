@@ -299,11 +299,6 @@ Observations.prototype.getPluginTypeInstances = function (cnfg, config, complete
         userId: this.bc.dap.userId,
         typeId: plugName};
 
-    if(config.properties.members){ 
-        config.properties.members.forEach(function (property) {
-            properties.set(property._name, {name: property._name, value: property.propertyvalue});
-        });
-    };
     config.observationsproducedconfig.members.forEach(function (observation) {
             var tt = [];
             if (observation.thingsconfig && Array.isArray(observation.thingsconfig)) {
