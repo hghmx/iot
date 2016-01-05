@@ -75,6 +75,13 @@ DapWs.prototype.message = function (data) {
 DapWs.prototype.close = function (reasonCode, description) {
     logger.error( util.format("Web socket %s close %d %s", this.url, reasonCode, description));
     this.connection = null;
+    if(dapReconnect && !dapReconnect.reconnecting){
+        dapReconnect.reconnect(this.url, err, function(err){
+            if(err){
+                logger.error(err.message);
+            }
+        });
+    }    
 };
 
 DapWs.prototype.error = function (err) {
