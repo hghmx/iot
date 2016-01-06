@@ -153,7 +153,7 @@ LLRPReader.prototype.start = function (context, complete) {
             this.logger = context.logger;
         }
 
-        this.setAntennasMap(context.thingInstance.antennas);
+        this.setAntennasMap(context.thingInstance.LlrpAntennas.members);
         this.smoothing = context.thingInstance.smoothing;
         this.connectReader(complete);
     } catch (err) {

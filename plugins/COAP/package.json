@@ -1,0 +1,20 @@
+{
+  "name": "coap",
+  "version": "1.0.0",
+  "description": "Bridge coap messages from broker to AMTech IoT protocol",
+  "main": "COAP.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },  
+  "dependencies": {
+    "coap" : "0.12.1"
+  },
+  
+  "keywords": [
+    "coap",
+    "IoT",
+    "AMTech"
+  ],
+  "author": "",
+  "license": "Apache-2.0"
+}

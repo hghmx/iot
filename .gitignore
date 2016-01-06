@@ -6,3 +6,5 @@ bridgeConfig.json
 /plugins/LLRPReader/node_modules/
 /plugins/SNMPDevice/node_modules/
 /data/
+/plugins/COAP/node_modules/
+/plugins/MQTT/node_modules/

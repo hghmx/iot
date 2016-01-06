@@ -99,6 +99,7 @@ DapClient.prototype.getPluginsInstances = function (pluginType, complete) {
     var self = this;
     var options = self._options();
     options.query = options.query || {};
+    options.query['selfContained'] = true;
     options.query['/amtech/observers/getThingsByType/entitiesFilter/SNMPDevice/resourcetype'] = pluginType;
     rest.get(self.dapUrl + getPluginInstances, options).on(
         'complete',

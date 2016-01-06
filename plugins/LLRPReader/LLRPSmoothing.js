@@ -43,22 +43,26 @@ function LLRPSmoothing( isReaderSmoothing, antennas,
 LLRPSmoothing.prototype.setNoSmothAntenna = function () {
     var self = this;
     var noSmothAntenna = false;
-    self.antennas.forEach(function(_antenna){
-        if(_antenna.smoothing !== undefined && _antenna.smoothing === false ){
-            noSmothAntenna = true;
-        }
-    });
+    if(self.antennas){
+        self.antennas.forEach(function(_antenna){
+            if(_antenna.smoothing !== undefined && _antenna.smoothing === false ){
+                noSmothAntenna = true;
+            }
+        });
+    }
     return noSmothAntenna;
 };
 
 LLRPSmoothing.prototype.setSmoothing = function (smoothing) {
     var self = this;
     var smoothing = smoothing;
-    self.antennas.forEach(function(_antenna){
-        if(_antenna.smoothing){
-            smoothing = true;
-        }
-    });
+    if(self.antennas){
+        self.antennas.forEach(function(_antenna){
+            if(_antenna.smoothing){
+                smoothing = true;
+            }
+        });
+    }
     return smoothing;
 };
 
