@@ -155,6 +155,7 @@ LLRPReader.prototype.start = function (context, complete) {
 
         this.setAntennasMap(context.thingInstance.LlrpAntennas.members);
         this.smoothing = context.thingInstance.smoothing;
+        this.proximityarea = context.thingInstance.proximityarea['@id'];
         this.connectReader(complete);
     } catch (err) {
         this.sendError(err);
@@ -165,22 +166,23 @@ LLRPReader.prototype.start = function (context, complete) {
 LLRPReader.prototype.setAntennasMap = function (antennas) {
     if (antennas) {
         try {
-            var _antennas = JSON.parse(antennas);
             var self = this;
             self.antennas = new hashMap();
-            _antennas.forEach(function (antenna) {
-                self.antennas.set(antenna.id, antenna);
+            antennas.forEach(function (antenna) {
+                self.antennas.set(antenna.llrpId, 
+                    {id: antenna.llrpId, 
+                    name : antenna._name, 
+                    decodeEPCValues : antenna.decodeEPCValues,
+                    smoothing: antenna.smoothing,
+                    reportAmountForSmoothing:antenna.reportAmountForSmoothing,
+                    useSingleDecode96EPC : antenna.useSingleDecode96EPC,
+                    proximityarea: antenna.proximityarea['@id']});
             });
         } catch (e) {
             this.antennas = null;
             if (this.logger) {
                  this.logger.error(util.format('LLRP reader %s wrong json antenna configuration', this.name));
-            }
-            ;
-            if (this.logger) {
-                 this.logger.info(util.format('LLRP reader %s running without antenna configuration', this.name));
-            }
-            ;
+            };
         }
     } else {
         this.antennas = null;
@@ -205,15 +207,18 @@ LLRPReader.prototype.connectReader = function (complete) {
 
                     self.msgBuffers = new msgBuffers.MsgBuffers();
 
-                    self.llrpObservs = new llrpObservations(self.location,
+                    self.llrpObservs = new llrpObservations(
+                        self.location,
                         self.observationsCnfg,
                         self.decodeEPCValues,
                         self.useSingleDecode96EPC,
                         self.groupReport,
                         self.antennas,
+                        self.proximityarea,
                         self.logger);
 
-                    self.llrpSmothing = new llrpSmoothing(self.smoothing,
+                    self.llrpSmothing = new llrpSmoothing(
+                        self.smoothing,
                         self.antennas,
                         self.llrpObservs,
                         self.reportAmountForSmoothing,
@@ -221,7 +226,6 @@ LLRPReader.prototype.connectReader = function (complete) {
 
                     self.smoothing = self.llrpSmothing.smoothig;
 
- 
                     self.socket = new net.Socket();
                     // timeout after 60 seconds.
                     self.socket.setTimeout(60000, function () {

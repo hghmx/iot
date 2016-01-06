@@ -312,6 +312,7 @@ function LLRPObservations(location,
                           useSingleDecode96EPC,
                           groupReport,
                           antennas,
+                          proximityarea,
                           logger) {
     var self = this;
     self.location = location;
@@ -320,6 +321,7 @@ function LLRPObservations(location,
     self.useSingleDecode96EPC = useSingleDecode96EPC;
     self.groupReport = groupReport;
     self.setAntennaGroups(antennas);
+    self.proximityarea = proximityarea;
     self.observsGroups  = new hashMap();
     self.logger = logger;
 }
@@ -422,6 +424,7 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
         //Configurable properties
         if(self.observationsCnfg && self.observationsCnfg.has(observationName)){
             epcObsrv.targetthings = self.fillPlaceholder(self.observationsCnfg.get(observationName).thingsconfig, ph);
+            epcObsrv.targetthings = self.fillProximityArea(epcObsrv.antennaId, epcObsrv.targetthings); 
             epcObsrv.producer = self.fillPlaceholder(self.observationsCnfg.get(observationName).producerschema, ph);
             epcObsrv.topic = self.fillPlaceholder(self.observationsCnfg.get(observationName).topicschema, ph);
             epcObsrv.occurrencetime = new Date().toISOString();
@@ -471,6 +474,18 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
         self.observsGroups.clear();
     }
     return observationGroups;
+};
+
+LLRPObservations.prototype.fillProximityArea = function (antennaId, targetThings) {   
+    var pa = this.getAntennaValueOrDefault(antennaId, 'proximityarea', this.proximityarea);
+    if(targetThings && pa && pa.length > 0){
+        var target = JSON.parse(targetThings);
+        target.forEach(function(tt){
+            tt.proximityarea = pa;
+        });
+        return JSON.stringify(target);
+    }
+    return targetThings;
 };
 
 LLRPObservations.prototype.buildGroup = function (tagsGroup, key, observationGroups) {

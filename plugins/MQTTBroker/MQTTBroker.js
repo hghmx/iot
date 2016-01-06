@@ -22,7 +22,7 @@ var mosca = require('mosca');
 var util = require('util');
 var clone = require('clone');
 
-function MQTT() {
+function MQTTBroker() {
 }
 
 /**
@@ -35,7 +35,7 @@ function MQTT() {
  *  logger logger object instance}
  *  complete function 
  */
-MQTT.prototype.start = function function (context, complete){
+MQTTBroker.prototype.start = function function (context, complete){
     try {
         var self = this; 
         self.observationsCnfg = context.observationsCnfg;
@@ -74,13 +74,13 @@ MQTT.prototype.start = function function (context, complete){
     }
 };
 
-MQTT.prototype.authenticate = function(client, username, password, callback){
+MQTTBroker.prototype.authenticate = function(client, username, password, callback){
     var authorized = (username === 'alice' && password.toString() === 'secret');
     if (authorized) client.user = username;
     callback(null, authorized);   
 }
 
-MQTT.prototype.sendMessage = function(packet, client){
+MQTTBroker.prototype.sendMessage = function(packet, client){
     var mqttMsg = this.newMQTTMessage(packet);
     this.sendObservation(this, mqttMsg);
 }
@@ -90,7 +90,7 @@ MQTT.prototype.sendMessage = function(packet, client){
  * 
  * @param complete function
  */
-MQTT.prototype.stop = function (complete) {
+MQTTBroker.prototype.stop = function (complete) {
     try {
         this.server.close(function(){
             complete(null);
@@ -106,7 +106,7 @@ MQTT.prototype.stop = function (complete) {
  * @param observation
  * @param complete
  */
-MQTT.prototype.command = function (observation, complete) {        
+MQTTBroker.prototype.command = function (observation, complete) {        
     try {
         if (observation["@type"] === "/amtech/linkeddata/types/composite/observation/MQTTMessage") {
  
@@ -128,7 +128,7 @@ MQTT.prototype.command = function (observation, complete) {
     }
 };
 
-SNMPDevice.prototype.newMQTTMessage = function (packet) {   
+MQTTBroker.prototype.newMQTTMessage = function (packet) {   
     var mqttMessage = clone(   {
         "proximityarea": "",
         "topic": "",
@@ -156,4 +156,4 @@ SNMPDevice.prototype.newMQTTMessage = function (packet) {
     return mqttMessage;
 };
 
-module.exports.MQTT = MQTT;
+module.exports.MQTTBroker = MQTTBroker;
