@@ -8,3 +8,4 @@ bridgeConfig.json
 /data/
 /plugins/COAP/node_modules/
 /plugins/MQTT/node_modules/
+/plugins/MQTTBroker/node_modules/
