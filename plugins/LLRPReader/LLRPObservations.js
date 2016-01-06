@@ -47,6 +47,7 @@ var epcObservations =  [
         "itemReference": "",
         "locationReference": "",
         "topic": "",
+        "proximityarea": "",
         "managerNumber": "",
         "@type": "/amtech/linkeddata/types/composite/observation/decode96EPC",
         "objectClass": "",
@@ -61,6 +62,7 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/decodeEPCSimulation"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -79,6 +81,7 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/dataEPCSimulation"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -98,6 +101,7 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/stginEPCDevelopment"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -114,6 +118,7 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/rawEPCSimulator"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -129,6 +134,7 @@ var epcObservations =  [
         "@id": "/amtech/things/observations/encoded96EPCSimulation"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -147,6 +153,7 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:25:23 UTC 2015"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -165,6 +172,7 @@ var epcObservations =  [
         "locationReference": ""
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -184,6 +192,7 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:22:14 UTC 2015"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -202,6 +211,7 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:19:57 UTC 2015"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -220,6 +230,7 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:18:43 UTC 2015"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -238,6 +249,7 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:17:14 UTC 2015"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "managerNumber": "",
@@ -257,6 +269,7 @@ var epcObservations =  [
         "occurrencetime": "Tue Nov 24 22:15:57 UTC 2015"
     },
     {   "topic": "",
+        "proximityarea": "",
         "antennaId": "",
         "antennaName": "",
         "guestusers": [],
@@ -275,6 +288,7 @@ var epcObservations =  [
         "occurrencetime": "Sat Nov 28 21:38:23 UTC 2015"
     },
     {   "topic": "",
+        "proximityarea": "",
         "targetthings": "[]",
         "location": "",
         "@type": "/amtech/linkeddata/types/composite/observation/llrpError",
@@ -287,6 +301,7 @@ var epcObservations =  [
     },
     {
         "topic": "",
+        "proximityarea": "",
         "groupName": "",
         "guestusers": [],
         "targetthings": "[]",
@@ -418,6 +433,10 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
             ph['smoothingResult'] = tagToSend.smoothingResult;
         }
         epcObsrv.epcString = tagToSend.tag;
+        var proximityA = self.getAntennaValueOrDefault(tagToSend.antenna, 'proximityarea', self.proximityarea);
+        if(proximityA){
+            epcObsrv.proximityarea = proximityA;
+        }
         epcObsrv.tagEncoding = tagToSend.name;
         epcObsrv.antennaId= tagToSend.antenna;
         epcObsrv.antennaName = self.getAntennaName(tagToSend.antenna);

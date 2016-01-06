@@ -176,7 +176,8 @@ LLRPReader.prototype.setAntennasMap = function (antennas) {
                     smoothing: antenna.smoothing,
                     reportAmountForSmoothing:antenna.reportAmountForSmoothing,
                     useSingleDecode96EPC : antenna.useSingleDecode96EPC,
-                    proximityarea: antenna.proximityarea['@id']});
+                    proximityarea: typeof antenna.proximityarea === "object"?
+                        antenna.proximityarea['@id'] : antenna.proximityarea});
             });
         } catch (e) {
             this.antennas = null;
