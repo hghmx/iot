@@ -2,7 +2,7 @@
   "name": "mqtt",
   "version": "1.0.0",
   "description": "Bridge mqtt messages from mqtt broker to AMTech IoT protocol",
-  "main": "MQTT.js",
+  "main": "MQTTBroker.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },  

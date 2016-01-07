@@ -34,7 +34,7 @@ var dapReconnect = require('./reconnectDAP').reconnectDAP;
 ///amtech/push/things/commands?client=<client_id>&thingtype=<thing_type>
 var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=/amtech/linkeddata/types/composite/entity/%s';
 var urlDapCrud = '/amtech/push/things/events?topic=%s&client=%s';
-
+var urlThingCrud = "thingcrud/";
 
 function Plugins( bc, dapClient, observs ){     
     this.bc = bc;
@@ -71,12 +71,19 @@ Plugins.prototype.load = function (complete) {
 };
 
 Plugins.prototype.connectWS = function (pluginInstance, complete) {
-    async.parallel([pluginInstance.commands.connect.bind(pluginInstance.commands),
-                    pluginInstance.crud.connect.bind(pluginInstance.crud)], 
-                    function(err){
-                        complete(err);
-                    }
-    );
+    var funcs = [];
+    if(pluginInstance.commands){
+        funcs.push(pluginInstance.commands.connect.bind(pluginInstance.commands));
+    }
+    if(pluginInstance.crud){
+        funcs.push(pluginInstance.crud.connect.bind(pluginInstance.crud));
+    }
+    if(funcs.length> 0){
+        async.parallel(funcs, 
+            function(err){
+                complete(err);
+            });
+    }
 };
 
 Plugins.prototype.pluged = function (pluginConfig, complete) {
@@ -99,7 +106,7 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
                 }
             });
     }catch(e){
-        complete(e);
+        complete(new Error(util.format("Error loding plugin class %s.js error %s.", pluginConfig.name, e.message)));
     }
 };
 
@@ -132,9 +139,9 @@ Plugins.prototype.addWebSockets = function (pluginName, observations) {
     this.plugins.get(pluginName)['commands'] = new dapws(this.bc, cmdUrl, this.onCommand.bind(this), pluginName);
     //if observationresourcecrud is configured for the pluginName listen to web socket
     if(observations && 
-        observations.has('observationresourcecrud') &&
-        observations.get('observationresourcecrud').topicschema){        
-        var crudUrl = wsDapUrl + util.format(urlDapCrud, observations.get('observationresourcecrud').topicschema, this.bc.bridgeId);        
+        observations.has('observationresourcecrud')){
+        var topic =  urlThingCrud + pluginName;     
+        var crudUrl = wsDapUrl + util.format(urlDapCrud,topic, this.bc.bridgeId);        
         this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName);
     }else{
         logger.warn(util.format("Pluging %s does not have observationresourcecrud configuration.", pluginName));
@@ -390,12 +397,20 @@ Plugins.prototype.stop = function (plugIn, complete) {
 };
 
 Plugins.prototype.closeSocket = function (pluginType, complete) {
-
-    async.parallel([pluginType.commands.endConnection.bind(pluginType.commands),
-        pluginType.crud.endConnection.bind(pluginType.crud)],
-            function (err) {
+    var funcs = [];
+    if (pluginType.commands) {
+        funcs.push(pluginType.commands.endConnection.bind(pluginType.commands));
+    }
+    if (pluginType.crud) {
+        funcs.push(pluginType.crud.endConnection.bind(pluginType.crud));
+    }
+    if (funcs.length > 0) {
+        async.parallel(funcs, function (err) {
                 complete(err);
             });
+    }else{
+        complete(null);
+    }
 };
 
 Plugins.prototype.stopPlugIns = function (complete) {
