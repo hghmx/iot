@@ -212,56 +212,66 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
     }
     m2mError.topic = util.format( "m2mBridge/errors/%s", pluginName);
     
-    this.observs.send(m2mError);
+    this.observs.send(m2mError);    
+    logger.error( error.message);
 };
 
 Plugins.prototype.onCommand = function (pluginName, observation, complete) {
     var self = this;
-    if(observation.targetthings){
-        var targetThings = JSON.parse(observation.targetthings);
-        targetThings.forEach(function(tt){
-            pluginName = self.observs.getResourceName(tt.thingType);
-            if (self.plugins.has(pluginName)) {
-                tt.thingsId.forEach(function(instanceId){
-                    if (self.plugins.get(pluginName).instances.has(instanceId)) {
-                        self.plugins.get(pluginName).instances.get(instanceId).instance.command(observation, 
-                        function(err){
-                            if(err){
-                                if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
-                                    self.sendPluginError(pluginName, err);
-                                }
-                                complete(err);
+    try {
+        if (observation.targetthings) {
+            var targetThings = JSON.parse(observation.targetthings);
+            targetThings.forEach(function (tt) {
+                pluginName = self.observs.getResourceName(tt.thingType);
+                if (self.plugins.has(pluginName)) {
+                    tt.thingsId.forEach(function (instanceId) {
+                        if (self.plugins.get(pluginName).instances.has(instanceId)) {
+                            self.plugins.get(pluginName).instances.get(instanceId).instance.command(observation,
+                                function (err) {
+                                    if (err) {
+                                        if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                                            self.sendPluginError(pluginName, err);
+                                        }
+                                        //complete(err);
+                                    }
+                                });
+                        } else {
+                            var err = new Error(
+                                util.format("Command has ben sent to a plugin %s with an unknown intance %s"
+                                    , pluginName, instanceId));
+                            if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                                self.sendPluginError(pluginName, err);
                             }
-                        } );
-                        
-                    }else{
-                        var err = new Error( 
-                            util.format("Command has ben sent to a plugin %s with an unknown intance %s"
-                                , pluginName, instanceId));
-                        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
-                            self.sendPluginError(pluginName, err);
+                            //complete(err);
                         }
-                        complete(err);
+                    });
+                } else {
+                    var err = new Error(
+                        util.format("Command has ben sent to an unknown plugin  %s"
+                            , pluginName));
+                    if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                        self.sendPluginError(pluginName, err);
                     }
-                });
-            }else{
-                var err = new Error( 
-                    util.format("Command has ben sent to an unknown plugin  %s"
-                        , pluginName));
-                if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
-                    self.sendPluginError(pluginName, err);
-                }                
-                complete(err);
+                    //complete(err);
+                }
+            });
+            complete(null);
+        } else {
+            var err = new Error("Command has been sent without a targetthings property");
+            //send error
+            if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                self.sendPluginError(pluginName, err);
             }
-        });
-        complete(null);
-    }else{
-        var err = new Error("Command has been sent without a targetthings property");
+            complete(err);
+        }
+    } catch (e) {
+        var err = new Error(util.format("Error on command sent to a plugin %s error: %s"
+                                    , pluginName, e.message));
         //send error
-        if(self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError){
+        if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
             self.sendPluginError(pluginName, err);
-        }        
-        complete(err);
+        }
+        complete(err);          
     }
 };
 

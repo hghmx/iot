@@ -75,7 +75,8 @@ LLRPReader.prototype.setCommands = function (complete) {
         {pn: 'startRospec', fileName: path.resolve(__dirname, "./startRospec.llrp")},
         {pn: 'delAccessSpec', fileName: path.resolve(__dirname, "./delAccessSpec.llrp")},
         {pn: 'closeConnection', fileName: path.resolve(__dirname, "./closeConnection.llrp")},
-        {pn: 'enableEventsAndReports', fileName: path.resolve(__dirname, "./enableEventsAndReports.llrp")}
+        {pn: 'enableEventsAndReports', fileName: path.resolve(__dirname, "./enableEventsAndReports.llrp")},
+        {pn: 'gpoWriteConfig', fileName: path.resolve(__dirname, "./gpoWriteConfig.llrp")}
     ];    
     if (this._addRospec || this._setReaderConfig) {
         var _addRospecFile = "./addRospecEmptyOld.llrp";
@@ -373,9 +374,23 @@ LLRPReader.prototype.startEventCycle = function (data) {
                     break;
                     //6
                 case messageC.SET_READER_CONFIG_RESPONSE:
-                    self.configReaderSet = true;
-                    //self.sendMessage('DELETE_ROSPEC', self.delRospec);
-                    self.sendMessage('ADD_ROSPEC', self.addRospec);
+                    if( !self.configReaderSet){
+                        self.configReaderSet = true;
+                        //self.sendMessage('DELETE_ROSPEC', self.delRospec);
+                        self.sendMessage('ADD_ROSPEC', self.addRospec);
+                    }else{
+                        var gpoResponse = java.newInstanceSync('org.llrp.ltk.generated.messages.SET_READER_CONFIG_RESPONSE', byteArray);
+                        var okGPO = self.llrpSuccess(gpoResponse);
+                        if(okGPO){
+                            self.logger.debug(util.format("GPO Write command OK to plugin name  %s", self.name));
+                        }else{
+                            var msg = util.format("GPO Write command OK to plugin name  %s", self.name);
+                            if (self.logger) {
+                                self.logger.error(msg);
+                             }
+                            self.sendError(new Error(msg));
+                        }
+                    }
                     break;
                     //8
                 case messageC.ADD_ROSPEC_RESPONSE:
@@ -593,11 +608,11 @@ LLRPReader.prototype.stop = function (complete) {
 LLRPReader.prototype.command = function (observation, complete) {
     try {
         if (observation["@type"] === "/amtech/linkeddata/types/composite/observation/gpoWriteDataEPC") {
-            //send llrp GPOWriteData
-            var gpoWriteData = java.newInstanceSync('org.llrp.ltk.generated.parameters.GPOWriteData');
-            gpoWriteData.setGPOPortNumber(observation.gpoPort);
-            gpoWriteData.setGPOData(observation.gpoData);
-            this.sendMessage('GPOWriteData', gpoWriteData);
+            //send llrp GPOWriteData            
+            this.gpoWriteConfig.getGPOWriteDataListSync().getFirstSync().setGPOPortNumberSync(java.newInstanceSync('org.llrp.ltk.types.UnsignedShort', observation.gpoPort ));
+            this.gpoWriteConfig.getGPOWriteDataListSync().getFirstSync().setGPODataSync(java.newInstanceSync('org.llrp.ltk.types.Bit', 
+               java.newInstanceSync("java.lang.Boolean",observation.gpoData)));
+            this.sendMessage('GPOWriteData', this.gpoWriteConfig);
         } else {
             complete(new Error("LLRPReader support commands of observations type gpoWriteDataEPC"));
         }
