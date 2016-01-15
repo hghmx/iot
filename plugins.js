@@ -83,28 +83,40 @@ Plugins.prototype.connectWS = function (pluginInstance, complete) {
             function(err){
                 complete(err);
             });
+    }else{
+        complete(null);
     }
 };
 
 Plugins.prototype.pluged = function (pluginConfig, complete) {
     var self = this;
     try{
-        //self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:null, crud:null});   
-        self.addWebSockets(pluginConfig.name, pluginConfig.instances.values()[0].observations);
-        var plugClass = require(pluginsDir +'/' + pluginConfig.name + '/' + pluginConfig.name);
-        //plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
-        plugClass[ pluginConfig.name].prototype['sendObservation'] = self.sendObservation.bind(self);
-        plugClass[ pluginConfig.name].prototype['restartPlugIn'] = self.restartPlugIn.bind(self);
-        async.each(pluginConfig.instances.values(), 
-            async.apply(Plugins.prototype.newInstance.bind(this), 
-                        plugClass, pluginConfig.name),
-            function (err) {
-                if (err) {
-                    complete(err);
-                } else {
-                    complete(null);
-                }
-            });
+        if(pluginConfig['id'] === "/amtech/linkeddata/types/composite/entity/amtechM2mBridge"){
+            logger.debug(util.format("Load  amtechM2mBridge instance %s.", pluginConfig.instances.values()[0].config._name));
+            if(!pluginConfig.instances.values()[0].observations.get('m2mBridgeError') ||
+                !pluginConfig.instances.values()[0].observations.get('m2mBridgeError').topicschema ||
+                pluginConfig.instances.values()[0].observations.get('m2mBridgeError').length === 0){
+                logger.error(util.format("amtechM2mBridge name %s has not defined m2mBridgeError topic at activity.", pluginConfig.instances.values()[0].config._name));
+            }           
+            complete(null);
+        }else{
+            //self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:null, crud:null});   
+            self.addWebSockets(pluginConfig.name, pluginConfig.instances.values()[0].observations);
+            var plugClass = require(pluginsDir +'/' + pluginConfig.name + '/' + pluginConfig.name);
+            //plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
+            plugClass[ pluginConfig.name].prototype['sendObservation'] = self.sendObservation.bind(self);
+            plugClass[ pluginConfig.name].prototype['restartPlugIn'] = self.restartPlugIn.bind(self);
+            async.each(pluginConfig.instances.values(), 
+                async.apply(Plugins.prototype.newInstance.bind(this), 
+                            plugClass, pluginConfig.name),
+                function (err) {
+                    if (err) {
+                        complete(err);
+                    } else {
+                        complete(null);
+                    }
+                });
+        }
     }catch(e){
         complete(new Error(util.format("Error loding plugin class %s.js error %s.", pluginConfig.name, e.message)));
     }
@@ -189,31 +201,40 @@ Plugins.prototype.validateInterface = function (name, plugin) {
 Plugins.prototype.sendPluginError = function (pluginName, error) {
     var m2mError = clone(   {
                                 "errorMessage": "Error testing",
-                                "topic": "amtech/m2mBox/testing",
                                 "targetthings": "[]",
                                 "location": "",
                                 "@type": "/amtech/linkeddata/types/composite/observation/m2mBridgeError",
-                                "creationDate": "2015-10-19T18:51:46.667Z",
                                 "guesttenants": [],
                                 "description": "Simulate an M2M Bridge error observation",
                                 "producer": "simulator",
                                 "errorCode": 1,
-                                "detectiontime": "2015-10-19T18:46:36.000Z",
-                                "@id": "/amtech/things/observations/simulateM2MBridge",
-                                "occurrencetime": "2015-10-19T18:46:36.000Z"
-                            });
+                            });                        
+    var  errorMsg;                       
     if(error.message){
-        m2mError.errorMessage = error.message;
+        errorMsg = error.message;
     }else{
-        m2mError.errorMessage = "Unknown error";
-    }
-    if(error.code){
-        m2mError.errorCode =error.code;
-    }
-    m2mError.topic = util.format( "m2mBridge/errors/%s", pluginName);
+        errorMsg = "Unknown error";
+    }    
+    m2mError.errorMessage = util.format( "Plugin name %s, error %s.", pluginName, errorMsg);
     
-    this.observs.send(m2mError);    
-    logger.error( error.message);
+     if(!this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError') ||
+        !this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').topicschema ||
+        this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').length === 0){
+                logger.error(util.format("amtechM2mBridge name %s has not defined m2mBridgeError topic at activity.", 
+                this.plugins.get("amtechM2mBridge").instances.values()[0].config._name));
+    }else{
+        if(error.code){
+            m2mError.errorCode =error.code;
+        }else{
+            error.code = 0;
+        }
+        m2mError.occurrencetime = new Date().toISOString();
+        m2mError.topic = this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').topicschema;
+        m2mError.targetthings = this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').thingsconfig;
+        m2mError.producer = this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').producerschema;
+        this.observs.send(m2mError);   
+    }   
+    logger.error( m2mError.errorMessage);
 };
 
 Plugins.prototype.onCommand = function (pluginName, observation, complete) {
