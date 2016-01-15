@@ -304,7 +304,12 @@ Observations.prototype.getPluginTypeInstances = function (cnfg, config, complete
             if (observation.thingsconfig && Array.isArray(observation.thingsconfig)) {
                 observation.thingsconfig.forEach(function (targetThing) {
                     targetThing.resourceId = _self.fillTypePlaceholder(targetThing.resourceId, placeHolders);
-                    tt.push({thingType: targetThing.resourcetype, thingsId: [targetThing.resourceId]});
+                    var tThing = {thingType: targetThing.resourcetype, thingsId: [targetThing.resourceId]};
+                    if(targetThing.proximityarea && ['#{llrpReaderProximity}', '#{antennaProximity}'].indexOf(targetThing.proximityarea) !== -1){
+                        tThing.proximityarea = targetThing.proximityarea;
+                    }
+                    
+                    tt.push(tThing);
                 });
             } else {
                 tt.push({thingType: config.entitytype, thingsId: ['#{thingId}']});

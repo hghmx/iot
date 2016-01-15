@@ -58,8 +58,7 @@ DapClient.prototype.sendObservation = function (observation, complete) {
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
-                    complete(new Error(data['message'] + " (detail: "
-                            + data['messageDetail'] + ")"));
+                    complete(self.buildDapError(data, 'At DapClient sendObservation'));
                 } else {
                     complete();
                 }
@@ -87,8 +86,7 @@ DapClient.prototype.getConfiguration = function (complete) {
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
-                complete(new Error(data['message'] + " (detail: "
-                        + data['messageDetail'] + ")"));
+                complete(self.buildDapError(data, 'At DapClient getConfiguration'));
             } else {
                 complete(null, data.results);
             }
@@ -109,12 +107,16 @@ DapClient.prototype.getPluginsInstances = function (pluginType, complete) {
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
-                complete(new Error(data['message'] + " (detail: "
-                        + data['messageDetail'] + ")"));
+                complete(self.buildDapError(data, 'At DapClient getPluginsInstances'));
             } else {
                 complete(null, data.queriesresults.members[0].entities);
             }
         });
+};
+
+DapClient.prototype.buildDapError = function (data, msg) {
+    return  new Error(  
+        util.format("%s %s (detail: %s %s)", msg, data['message'], data['messagedetail'],  data['resource']));
 };
 
 DapClient.prototype.getThing = function ( url, complete) {
@@ -130,8 +132,7 @@ DapClient.prototype.getThing = function ( url, complete) {
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
-                complete(new Error(data['message'] + " (detail: "
-                        + data['messageDetail'] + ")"));
+                complete(self.buildDapError(data, 'At DapClient getThing'));
             } else {
                 complete(null, data);
             }
@@ -149,8 +150,7 @@ DapClient.prototype.getBoxLocation = function (address, complete) {
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
-                    complete(new Error(data['message'] + " (detail: "
-                            + data['messageDetail'] + ")"));
+                    complete(self.buildDapError(data, 'At DapClient getBoxLocation'));
                 } else {
                     complete(null, data.results);
                 }
@@ -168,8 +168,7 @@ DapClient.prototype.newInstance = function (newInstance, complete) {
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
-                    complete(new Error(data['message'] + " (detail: "
-                            + data['messageDetail'] + ")"), data);
+                    complete(self.buildDapError(data, 'At DapClient newInstance'));
                 } else {
                     complete();
                 }

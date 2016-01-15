@@ -433,9 +433,15 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
             ph['smoothingResult'] = tagToSend.smoothingResult;
         }
         epcObsrv.epcString = tagToSend.tag;
+        
+        if(self.proximityarea){
+            ph['llrpReaderProximity'] = self.proximityarea;
+        }
+        
         var proximityA = self.getAntennaValueOrDefault(tagToSend.antenna, 'proximityarea', self.proximityarea);
         if(proximityA){
             epcObsrv.proximityarea = proximityA;
+            ph['antennaProximity'] = proximityA;
         }
         epcObsrv.tagEncoding = tagToSend.name;
         epcObsrv.antennaId= tagToSend.antenna;
@@ -443,7 +449,7 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
         //Configurable properties
         if(self.observationsCnfg && self.observationsCnfg.has(observationName)){
             epcObsrv.targetthings = self.fillPlaceholder(self.observationsCnfg.get(observationName).thingsconfig, ph);
-            epcObsrv.targetthings = self.fillProximityArea(epcObsrv.antennaId, epcObsrv.targetthings); 
+            //epcObsrv.targetthings = self.fillProximityArea(epcObsrv.antennaId, epcObsrv.targetthings); 
             epcObsrv.producer = self.fillPlaceholder(self.observationsCnfg.get(observationName).producerschema, ph);
             epcObsrv.topic = self.fillPlaceholder(self.observationsCnfg.get(observationName).topicschema, ph);
             epcObsrv.occurrencetime = new Date().toISOString();
@@ -464,8 +470,8 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
             }            
         }else if(!self.observationsCnfg.has(observationName)){
             //stop
-            self.logger.error(util.format('Observation type %s has not production configuration \n json: %s ',
-                    observationName, JSON.stringify(epcObsrv, undefined, 4) ) );
+            self.logger.warn(util.format('Observation type %s has not production configuration',
+                    observationName ) );
         }        
     });
     

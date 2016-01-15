@@ -165,7 +165,7 @@ Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance,
             } else {
                 pluginInstance['instance'] = newPlugin;
                 //self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
-                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  newPlugin['thingId']));
+                self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  newPlugin['@id']));
                 complete(null);
             }
         });
