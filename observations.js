@@ -33,7 +33,6 @@ var dapReconnect = require('./reconnectDAP').reconnectDAP;
 function Observations(bc, dapClient) {
     this.bc = bc;
     this.dapClient = dapClient;
-    this.reconnectInterval = null;
 }
 
 Observations.prototype.getConfiguration = function (complete) {
@@ -101,18 +100,13 @@ Observations.prototype.dispatch = function (complete) {
       }else{
         dapReconnect.init(self.bc, self);
         self.qObservations = db;  
-        self.qObservations.on('open', Observations.prototype.sendJobsPending.bind(self));
+        self.qObservations.on('open', function(){
+            self.sendJobsPending( function(result){
+                complete(result, "Observations dispatcher initialized");
+            });
+        });
         self.qObservations.on('put', Observations.prototype.dispatchJob.bind(self));
-        self.dispatching = true;
-//        self.reconnectInterval = setTimeout(function () {
-//            var error = new Error("Error sending observation type Testing reconnectiing");                        
-//            dapReconnect.reconnect(error.message, error, 
-//            function(err){
-//                if(err){
-//                    logger.error(err.message);
-//                }
-//            });}, 60000);        
-        complete(null, "Observations dispatcher initialized");
+        self.dispatching = true;      
       }
     });   
 };
@@ -121,31 +115,39 @@ Observations.prototype.pauseDispatch = function () {
     this.dispatching = false;
 };
 
-Observations.prototype.resumeDispatch = function () {
-    this.dispatching = true;
-    this.sendJobsPending();
+Observations.prototype.resumeDispatch = function (complete) {
+    this.sendJobsPending(function(err){
+        if(!err){
+            this.dispatching = true;
+        }
+        complete(err);
+    });
 };
 
-Observations.prototype.sendJobsPending = function () {
+Observations.prototype.sendJobsPending = function (complete) {
     var self = this;
     if(!self.dispatching) return;
-    self.qObservations.createReadStream({keyEncoding:'json',valueEncoding: 'json'})
-        .on('data', function (data) {            
+    var rs = self.qObservations.createReadStream({keyEncoding:'json',valueEncoding: 'json'})
+        .on('data', function (data) {
+            rs.pause();
             self.dispatchJob(data.key, data.value, function(err){
                 if(err){
                      logger.error(err);
+                     rs.destroy();
                 }else{
                     // logger.debug(util.format("Resending pending observations amount %d", data.length));
-                    logger.debug(util.format("Resending pending observations amount job id %s \n json: %s", data.key, 
-                    JSON.stringify(data.value, undefined, 4)));
+                    logger.info(util.format("Sent pending observations job id %s type: %s", data.key, data.value["@type"]));
+                    rs.resume();
                 }
             });
         })
         .on('error', function (err) {
             logger.error(err);
+            complete(err);
         })
         .on('end', function () {
             logger.info('End sending pending observations');
+            complete(null);
         });
 };
 
@@ -159,29 +161,30 @@ Observations.prototype.sendJob = function (key, value, callback) {
     var self = this;
     var hasCallback = typeof(callback) === 'function';
     try {
-        if (self.reconnectInterval) {
-            clearInterval(self.reconnectInterval);
-        }       
+        /*
         async.retry(
             {times: self.bc.networkFailed.retries, interval: self.bc.networkFailed.failedWait},
         async.apply(dapClient.prototype.sendObservation.bind(self.dapClient), value),
+        */
+        self.dapClient.sendObservation( value, 
             function (err) {
                 if (err) {
                     logger.error(util.format("Error %s sending observation type %s", err.message, value['@type']));
                     if (err instanceof Error && err.code && err.code === 403) {
-                        logger.error('sent observation: ' + err.message);
+                        logger.error('sending observation: ' + err.message);
                         if(hasCallback) callback(err);
                     } else if(dapReconnect && !dapReconnect.reconnecting){                    
                         var error = new Error(util.format("Error sending observation type %s reconnectiing", value['@type']));                        
                         dapReconnect.reconnect(error.message, error, function(err){
                             if(err){
                                 logger.error(err.message);
+                            }else{
+                                logger.info("Started reconnecting to AMTech Server...");
                             }
                         });
                     }
                     if(hasCallback) callback(error);
                 } else {                
-                    logger.debug('sent observation: ' + value['@type']);
                     self.qObservations.del(key, function (err) {
                         if (err) {
                             if (hasCallback)

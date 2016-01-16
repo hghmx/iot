@@ -28,18 +28,45 @@ function ReconnectDAP() {
     this.reconnecting = false;
 }
 
-ReconnectDAP.prototype.init = function (bc, obsevrations, plugins) {
+ReconnectDAP.prototype.init = function (bc, observations, plugins) {
     this.bc = bc;
-    this.obsevrations = obsevrations;
+    this.observations = observations;
     this.plugins = plugins;
+};
+
+ReconnectDAP.prototype.resumeDispatch = function (complete) {
+    var self = this;
+    self.observations.resumeDispatch(function (err) {
+        if (err) {
+            logger.error("Error resuming dispatching");
+            complete(err);
+        } else {
+            logger.info("Resume dispatching..");
+            complete(null);
+        }
+    });
+};
+
+ReconnectDAP.prototype.reconnectWS = function (complete) {
+    var self = this;
+    self.plugins.reconnectWS(
+        function (err) {
+            if (err) {
+                logger.error("Error reconnecting bridge websocket");
+                complete(err);
+            } else {
+                logger.debug("Reconnected bridge websocket");
+                complete(null);
+            }
+        });
 };
 
 ReconnectDAP.prototype.reconnect = function (url, err, complete) {
     var self = this;
     if (!self.reconnecting) {
         self.reconnecting = true;
-        if(self.obsevrations){
-            self.obsevrations.pauseDispatch();
+        if(self.observations){
+            self.observations.pauseDispatch();
         }
         logger.error(util.format("Reconnecting after receiving error from Web Socket url %s error %s", url, err.message));
         var isAlive = false;
@@ -58,25 +85,27 @@ ReconnectDAP.prototype.reconnect = function (url, err, complete) {
                     logger.error(util.format("Error pinging %s trying to reconnect", this.bc.dap.dapUrl));
                     complete(err);
                 } else if (isAlive) {
-                    if(self.obsevrations){
-                        self.obsevrations.resumeDispatch();
+                    var funcs = [];
+                    if(self.observations){
+                        funcs.push(self.resumeDispatch.bind(self));
+                        
                     }
                     if(self.plugins){
-                        self.plugins.reconnectWS(
-                            function (err) {
-                                if (err) {
-                                    logger.error("Error reconnecting web sockets or resuming observations dispatching");
-                                    complete(err);
-                                } else {
-                                    logger.debug("Reconnected to AMTech DAP...");
+                        funcs.push(self.reconnectWS.bind(self));
+                    }
+                    
+                    if(funcs.length> 0){
+                        async.series(funcs, 
+                            function(err){
+                                if(!err){
                                     self.reconnecting = false;
-                                    complete(null);
                                 }
+                                complete(err);
                             });
                     }else{
                         self.reconnecting = false;
-                        complete(null);                        
-                    }
+                        complete(null);
+                    }                    
                 }
             });
     } else {
