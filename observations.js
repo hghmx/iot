@@ -116,9 +116,10 @@ Observations.prototype.pauseDispatch = function () {
 };
 
 Observations.prototype.resumeDispatch = function (complete) {
+    this.dispatching = true;
     this.sendJobsPending(function(err){
-        if(!err){
-            this.dispatching = true;
+        if(err){
+            this.dispatching = false;
         }
         complete(err);
     });
@@ -184,7 +185,7 @@ Observations.prototype.sendJob = function (key, value, callback) {
                         });
                     }
                     if(hasCallback) callback(error);
-                } else {                
+                } else {                    
                     self.qObservations.del(key, function (err) {
                         if (err) {
                             if (hasCallback)
