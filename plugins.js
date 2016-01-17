@@ -118,7 +118,12 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
                 });
         }
     }catch(e){
-        complete(new Error(util.format("Error loding plugin class %s.js error %s.", pluginConfig.name, e.message)));
+        if(e.code === 'MODULE_NOT_FOUND'){
+            logger.warn(util.format("Thing Type %s without a plugin installed, can be a lnked type or error in configuration", pluginConfig.name));
+            complete(null);
+        }else{
+            complete(new Error(util.format("Error loding plugin type %s.js error %s.", pluginConfig.name, e.message)));
+        }
     }
 };
 
