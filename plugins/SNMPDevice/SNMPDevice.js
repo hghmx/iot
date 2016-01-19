@@ -268,6 +268,7 @@ SNMPDevice.prototype.stop = function (complete) {
         if(this.trapOn || this.trapListener ){
             this.trapListener.close();
         }
+        this.logger.info(util.format("Stop plugin id: %s", this['@id']));
         complete(null);
     } catch (e) {
         complete(e);

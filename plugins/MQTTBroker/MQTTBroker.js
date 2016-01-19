@@ -102,8 +102,10 @@ MQTTBroker.prototype.sendMessage = function (packet, client) {
  * @param complete function
  */
 MQTTBroker.prototype.stop = function (complete) {
+    var self = this;
     try {
         this.server.close(function () {
+            self.logger.info(util.format("Stop plugin id: %s", self['@id']));
             complete(null);
         });
     } catch (e) {

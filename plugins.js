@@ -29,11 +29,10 @@ var util = require('util');
 var dapws = require('./dapWs').DapWs;
 var clone = require('clone');
 var dapReconnect = require('./reconnectDAP').reconnectDAP;
-///amtech/push/things/events?topic=/dap/things/<thingType>/<CRUD>&client=<client_id>
-//var urlDapCrud = '/amtech/push/things/events?topic=/thingcrud/%s&client=%s';
-///amtech/push/things/commands?client=<client_id>&thingtype=<thing_type>
-var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=/amtech/linkeddata/types/composite/entity/%s';
-var urlDapCrud = '/amtech/push/things/events?topic=%s&client=%s';
+//var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=/amtech/linkeddata/types/composite/entity/%s';
+//var urlDapCrud = '/amtech/push/things/events?topic=%s&client=%s';
+var crudCommandWS = '/amtech/push/things/events?topic=%s&client=%s';
+
 var urlThingCrud = "thingcrud/";
 
 function Plugins( bc, dapClient, observs ){     
@@ -50,42 +49,35 @@ Plugins.prototype.load = function (complete) {
     }
     self.loadedPlugs = [];
     this.plugins = self.observs.typesConfiguration;
-
     async.each(this.plugins.values(), Plugins.prototype.pluged.bind(this),
-            function (err) {
-                if (err) {
-                    complete(err);
-                } else {
-                    async.each(self.plugins.values(), Plugins.prototype.connectWS.bind(self),
-                            function (err) {
-                                if (err) {
-                                    complete(err);
-                                } else {
-                                    self.loadedPlugs.push(util.format("Loaded: %d plugins", self.getInstances().length));
-                                    dapReconnect.plugins= self;
-                                    complete(null, self.loadedPlugs);
-                                }
-                            });
-                }
-            });
+        function (err) {
+            if (err) {
+                complete(err);
+            } else {
+                self.connectWS(function (error) {
+                    if (error) {
+                        complete(error);
+                    } else {
+                        self.loadedPlugs.push(util.format("Loaded: %d plugins", self.getInstances().length));
+                        dapReconnect.plugins = self;
+                        complete(null, self.loadedPlugs);
+                    }
+                });
+            }
+        });
 };
 
-Plugins.prototype.connectWS = function (pluginInstance, complete) {
-    var funcs = [];
-    if(pluginInstance.commands){
-        funcs.push(pluginInstance.commands.connect.bind(pluginInstance.commands));
-    }
-    if(pluginInstance.crud){
-        funcs.push(pluginInstance.crud.connect.bind(pluginInstance.crud));
-    }
-    if(funcs.length> 0){
-        async.parallel(funcs, 
-            function(err){
-                complete(err);
-            });
-    }else{
-        complete(null);
-    }
+Plugins.prototype.connectWS = function (complete) {
+    var self = this;
+    var wsDapUrl = this.bc.dap.dapUrl.replace('https', 'wss');
+    var ccAsyncWSUrl = wsDapUrl + util.format(crudCommandWS,this.bc.dap.crudCommandUrl, this.bc.bridgeId);
+    self['ccAsyncWS'] = new dapws(this.bc, ccAsyncWSUrl, this.onCCAsync.bind(this));
+    self.ccAsyncWS.connect(function(err){
+        if(!err){
+            logger.info("CRUD and Command websocket successfully opened" );
+        }
+        complete(err);
+    });
 };
 
 Plugins.prototype.pluged = function (pluginConfig, complete) {
@@ -100,8 +92,6 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
             }           
             complete(null);
         }else{
-            //self.plugins.set(pluginConfig.name, {instances:new hashMap(), commands:null, crud:null});   
-            self.addWebSockets(pluginConfig.name, pluginConfig.instances.values()[0].observations);
             var plugClass = require(pluginsDir +'/' + pluginConfig.name + '/' + pluginConfig.name);
             //plugClass[ pluginConfig.name].prototype['sendObservation'] = self.observs.send.bind(self.observs);
             plugClass[ pluginConfig.name].prototype['sendObservation'] = self.sendObservation.bind(self);
@@ -147,22 +137,6 @@ Plugins.prototype.sendObservation = function (pginInstance, observation) {
         }
     }
     this.observs.send(observation);
-};
-
-
-Plugins.prototype.addWebSockets = function (pluginName, observations) {
-    var wsDapUrl = this.bc.dap.dapUrl.replace('https', 'wss');
-    var cmdUrl = wsDapUrl + util.format(urlDapCmds, this.bc.bridgeId, pluginName);
-    this.plugins.get(pluginName)['commands'] = new dapws(this.bc, cmdUrl, this.onCommand.bind(this), pluginName);
-    //if observationresourcecrud is configured for the pluginName listen to web socket
-    if(observations && 
-        observations.has('observationresourcecrud')){
-        var topic =  urlThingCrud + pluginName;     
-        var crudUrl = wsDapUrl + util.format(urlDapCrud,topic, this.bc.bridgeId);        
-        this.plugins.get(pluginName)['crud'] = new dapws(this.bc, crudUrl, this.onCrud.bind(this), pluginName);
-    }else{
-        logger.warn(util.format("Pluging %s does not have observationresourcecrud configuration.", pluginName));
-    }
 };
 
 Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance, complete ) {
@@ -242,54 +216,69 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
     logger.error( m2mError.errorMessage);
 };
 
-Plugins.prototype.onCommand = function (pluginName, observation, complete) {
+Plugins.prototype.onCCAsync = function ( observation, complete) {
     var self = this;
-    try {
-        if (observation.targetthings) {
-            var targetThings = JSON.parse(observation.targetthings);
-            targetThings.forEach(function (tt) {
-                pluginName = self.observs.getResourceName(tt.thingType);
-                if (self.plugins.has(pluginName)) {
-                    tt.thingsId.forEach(function (instanceId) {
-                        if (self.plugins.get(pluginName).instances.has(instanceId)) {
-                            self.plugins.get(pluginName).instances.get(instanceId).instance.command(observation,
-                                function (err) {
-                                    if (err) {
-                                        if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
-                                            self.sendPluginError(pluginName, err);
-                                        }
-                                        //complete(err);
-                                    }
-                                });
-                        } else {
-                            var err = new Error(
-                                util.format("Command has ben sent to a plugin %s with an unknown intance %s"
-                                    , pluginName, instanceId));
-                            if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
-                                self.sendPluginError(pluginName, err);
-                            }
-                            //complete(err);
-                        }
-                    });
-                } else {
-                    var err = new Error(
-                        util.format("Command has ben sent to an unknown plugin  %s"
-                            , pluginName));
-                    if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
-                        self.sendPluginError(pluginName, err);
-                    }
-                    //complete(err);
-                }
-            });
-            complete(null);
-        } else {
+    if(observation['@type'] === "/amtech/linkeddata/types/composite/observation/observationresourcecrud"){
+        var pluginName = this.observs.getResourceName(observation.resourcetype);
+        this.onCrud(pluginName,observation, complete );
+    }else{
+        
+        if (!observation.targetthings) {
             var err = new Error("Command has been sent without a targetthings property");
             //send error
             if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
-                self.sendPluginError(pluginName, err);
+                self.sendPluginError("Uknown", err);
             }
             complete(err);
-        }
+        }else{
+            var tt  = JSON.parse(observation.targetthings);
+            self.onCommand( this.observs.getResourceName(tt[0].thingType), observation, complete);
+        }        
+    }
+};
+
+Plugins.prototype.onCommand = function (pluginName, observation, complete) {
+    var self = this; 
+    try {
+        var targetThings = JSON.parse(observation.targetthings);
+        targetThings.forEach(function (tt) {
+            pluginName = self.observs.getResourceName(tt.thingType);
+            if (self.plugins.has(pluginName)) {
+                tt.thingsId.forEach(function (instanceId) {
+                    if (self.plugins.get(pluginName).instances.has(instanceId)) {
+                        self.plugins.get(pluginName).instances.get(instanceId).instance.command(observation,
+                            function (err) {
+                                if (err) {
+                                    if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                                        self.sendPluginError(pluginName, err);
+                                    }
+                                    //complete(err);
+                                }else{
+                                    logger.info(util.format("Command has been executes by plugin: %s instance id: %s observation type: %s"
+                                            , pluginName, instanceId, observation['@type']));
+                                }
+                            });
+                    } else {
+                        var err = new Error(
+                            util.format("Command has ben sent to a plugin %s with an unknown instance %s"
+                                , pluginName, instanceId));
+                        if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                            self.sendPluginError(pluginName, err);
+                        }
+                        //complete(err);
+                    }
+                });
+            } else {
+                var err = new Error(
+                    util.format("Command has ben sent to an unknown plugin  %s"
+                        , pluginName));
+                if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                    self.sendPluginError(pluginName, err);
+                }
+                //complete(err);
+            }
+        });
+        complete(null);
     } catch (e) {
         var err = new Error(util.format("Error on command sent to a plugin %s error: %s"
                                     , pluginName, e.message));
@@ -432,50 +421,32 @@ Plugins.prototype.stop = function (plugIn, complete) {
     }
 };
 
-Plugins.prototype.closeSocket = function (pluginType, complete) {
-    var funcs = [];
-    if (pluginType.commands) {
-        funcs.push(pluginType.commands.endConnection.bind(pluginType.commands));
-    }
-    if (pluginType.crud) {
-        funcs.push(pluginType.crud.endConnection.bind(pluginType.crud));
-    }
-    if (funcs.length > 0) {
-        async.parallel(funcs, function (err) {
-                complete(err);
-            });
+Plugins.prototype.closeWS = function (complete) {
+    if(this.ccAsyncWS){
+        this.ccAsyncWS.endConnection(complete);
     }else{
         complete(null);
     }
 };
 
 Plugins.prototype.stopPlugIns = function (complete) {
-
-    if (this.plugins) {
-        var pluginsType = this.plugins.values();
-        async.each(pluginsType, Plugins.prototype.closeSocket.bind(this),
+    var self = this;
+    if (self.plugins) {
+        self.closeWS(function (err) {
+            var instances = self.getInstances();
+            async.each(instances, Plugins.prototype.stop.bind(self),
                 function (err) {
+                    if(err){
+                        logger.error(err.message);
+                    }
                     complete(err);
                 });
-        var instances = this.getInstances();
-        async.each(instances, Plugins.prototype.stop.bind(this),
-                function (err) {
-                    complete(err);
-                });
+        });
     }
 };
 
 Plugins.prototype.reconnectWS = function (complete) {
-    var self = this;
-    if (self.plugins) {
-        self.plugins = self.observs.typesConfiguration;
-        async.each(self.plugins.values(), Plugins.prototype.connectWS.bind(self),
-                                function (err) {
-                                    complete(err);
-                                });      
-     }else{
-        complete(null);
-    }
+    this.connectWS(complete);
 };
 
 Plugins.prototype.getInstances = function () {

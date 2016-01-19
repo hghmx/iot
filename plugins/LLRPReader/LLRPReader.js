@@ -599,6 +599,7 @@ LLRPReader.prototype.stop = function (complete) {
         }
         this.configReaderSet = false;
         this.isConnected = false;
+        this.logger.info(util.format("Stop plugin id: %s", this['@id']));
         complete(null);
     } catch (e) {
         complete(e);
@@ -613,6 +614,7 @@ LLRPReader.prototype.command = function (observation, complete) {
             this.gpoWriteConfig.getGPOWriteDataListSync().getFirstSync().setGPODataSync(java.newInstanceSync('org.llrp.ltk.types.Bit', 
                java.newInstanceSync("java.lang.Boolean",observation.gpoData)));
             this.sendMessage('GPOWriteData', this.gpoWriteConfig);
+            complete(null);
         } else {
             complete(new Error("LLRPReader support commands of observations type gpoWriteDataEPC"));
         }

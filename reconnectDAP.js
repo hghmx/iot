@@ -55,20 +55,17 @@ ReconnectDAP.prototype.reconnectWS = function (complete) {
                 logger.error("Error reconnecting bridge websocket");
                 complete(err);
             } else {
-                logger.debug("Reconnected bridge websocket");
+                logger.info("Reconnected bridge websocket");
                 complete(null);
             }
         });
 };
 
-ReconnectDAP.prototype.reconnect = function (url, err, complete) {
+ReconnectDAP.prototype.reconnect = function (errMessage, complete) {
     var self = this;
     if (!self.reconnecting) {
         self.reconnecting = true;
-        if(self.observations){
-            self.observations.pauseDispatch();
-        }
-        logger.error(util.format("Reconnecting after receiving error from Web Socket url %s error %s", url, err.message));
+        logger.error(util.format("Reconnecting to AMTech Servers after error %s", errMessage));
         var isAlive = false;
         async.whilst(
             function () {
@@ -82,9 +79,10 @@ ReconnectDAP.prototype.reconnect = function (url, err, complete) {
             },
             function (err, res) {
                 if (err) {
-                    logger.error(util.format("Error pinging %s trying to reconnect", this.bc.dap.dapUrl));
+                    logger.error(util.format("Error pinging %s reconnecting", this.bc.dap.dapUrl));
                     complete(err);
                 } else if (isAlive) {
+                    logger.info("SEEN AMTech server and reconnecting");
                     var funcs = [];
                     if(self.observations){
                         funcs.push(self.resumeDispatch.bind(self));
@@ -100,17 +98,16 @@ ReconnectDAP.prototype.reconnect = function (url, err, complete) {
                                 if(!err){
                                     self.reconnecting = false;
                                 }
-                                complete(err);
+                                complete(err, "RECONNECTED to AMTech Server..." );
                             });
                     }else{
                         self.reconnecting = false;
-                        complete(null);
+                        complete(null, "RECONNECTED to AMTech Server...");
                     }                    
                 }
             });
     } else {
-        logger.debug(util.format("Reconnecting after receiving error from Web Socket url %s error %s", url, err.message));
-        complete(null);
+        complete(null, "Reconnecting to AMTech Server in process");
     }
 };
 

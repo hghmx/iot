@@ -23,11 +23,10 @@ var websocket = require("websocket");
 var logger = require('./logger').logger;
 var util = require('util');
 var dapReconnect = require('./reconnectDAP').reconnectDAP;
-function DapWs( bc, url, onMessage, pluginName ){     
+function DapWs( bc, url, onMessage ){     
     this.bc = bc;
     this.url = url;
     this.onMessage = onMessage;
-    this.pluginName = pluginName;
     this.connected = false;
     this.authorization =  new Buffer(bc.dap.userId + '/' + bc.dap.tenant + ":" + bc.dap.password).toString("Base64");
     this.connection = null;
@@ -61,9 +60,9 @@ DapWs.prototype.connect = function (complete) {
 DapWs.prototype.message = function (data) {   
     if(data.type=== "utf8"){
         var observation = JSON.parse(data.utf8Data); 
-        this.onMessage(this.pluginName, observation, function(err){
+        this.onMessage(observation, function(err){
             if(err){
-                logger.error( "Error processing command " + err.message);
+                logger.error( "Error processing crud or command observation" + err.message);
             }
         });       
     }else{
@@ -73,10 +72,11 @@ DapWs.prototype.message = function (data) {
 };
 
 DapWs.prototype.close = function (reasonCode, description) {
-    logger.error( util.format("Web socket %s close %d %s", this.url, reasonCode, description));
+    var errorMsg = util.format("Web socket %s close %d %s", this.url, reasonCode, description);
+    logger.error(errorMsg);
     this.connection = null;
-    if(dapReconnect && !dapReconnect.reconnecting){
-        dapReconnect.reconnect(this.url, err, function(err){
+    if(dapReconnect){
+        dapReconnect.reconnect(errorMsg, function(err){
             if(err){
                 logger.error(err.message);
             }
@@ -85,11 +85,13 @@ DapWs.prototype.close = function (reasonCode, description) {
 };
 
 DapWs.prototype.error = function (err) {
+    var errorMsg = util.format("Web socket %s error: %s", this.url, err.message);
+    logger.error(errorMsg);      
     this.connection = null;    
-    if(dapReconnect && !dapReconnect.reconnecting){
-        dapReconnect.reconnect(this.url, err, function(err){
-            if(err){
-                logger.error(err.message);
+    if(dapReconnect){
+        dapReconnect.reconnect(errorMsg, function(error){
+            if(error){
+                logger.error(error.message);
             }
         });
     }
@@ -98,6 +100,7 @@ DapWs.prototype.error = function (err) {
 DapWs.prototype.endConnection = function ( complete) {
     if(this.connection){
         this.connection.close();
+        logger.info("End connetion ws url: " + this.url);
     }
     complete(null);
 };
