@@ -54,11 +54,11 @@ DapClient.prototype.sendObservation = function (observation, complete) {
             'complete',
             function(data, response) {
                 if (response && response.statusCode && response.statusCode !== 200) {
-                    complete(self.buildError(response, "Sending observation"));
+                    complete(self.buildError(response, "Sending observation"), data);
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
-                    complete(self.buildDapError(data, 'At DapClient sendObservation'));
+                    complete(self.buildDapError(data, 'At DapClient sendObservation'), data);
                 } else {
                     complete();
                 }
@@ -82,11 +82,11 @@ DapClient.prototype.getConfiguration = function (complete) {
         'complete',
         function (data, response) {
             if (response && response.statusCode && response.statusCode !== 200) {
-                complete(self.buildError(response, "Getting observation production configuration"));
+                complete(self.buildError(response, "Getting observation production configuration"), data);
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
-                complete(self.buildDapError(data, 'At DapClient getConfiguration'));
+                complete(self.buildDapError(data, 'At DapClient getConfiguration'), data);
             } else {
                 complete(null, data.results);
             }
@@ -103,11 +103,11 @@ DapClient.prototype.getPluginsInstances = function (pluginType, complete) {
         'complete',
         function (data, response) {
             if (response && response.statusCode && response.statusCode !== 200) {
-                complete(self.buildError(response, "Getting plugins instances"));
+                complete(self.buildError(response, "Getting plugins instances"), data);
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
-                complete(self.buildDapError(data, 'At DapClient getPluginsInstances'));
+                complete(self.buildDapError(data, 'At DapClient getPluginsInstances'), data);
             } else {
                 complete(null, data.queriesresults.members[0].entities);
             }
@@ -128,11 +128,11 @@ DapClient.prototype.getThing = function ( url, complete) {
         'complete',
         function (data, response) {
             if (response && response.statusCode && response.statusCode !== 200) {
-                complete(self.buildError(response, "Getting a plugging instance"));
+                complete(self.buildError(response, "Getting a plugging instance"), data);
             } else if (data instanceof Error) {
                 complete(data);
             } else if ('success' in data && !data['success']) {
-                complete(self.buildDapError(data, 'At DapClient getThing'));
+                complete(self.buildDapError(data, 'At DapClient getThing'), data);
             } else {
                 complete(null, data);
             }
@@ -146,11 +146,11 @@ DapClient.prototype.getBoxLocation = function (address, complete) {
             'complete',
             function (data, response) {
                 if (response && response.statusCode && response.statusCode !== 200) {
-                    complete(self.buildError(response, "Getting bridge location"));
+                    complete(self.buildError(response, "Getting bridge location"), data);
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
-                    complete(self.buildDapError(data, 'At DapClient getBoxLocation'));
+                    complete(self.buildDapError(data, 'At DapClient getBoxLocation'), data);
                 } else {
                     complete(null, data.results);
                 }
@@ -164,11 +164,11 @@ DapClient.prototype.newInstance = function (newInstance, complete) {
             'complete',
             function(data, response) {
                 if (response && response.statusCode && response.statusCode !== 200) {
-                    complete(self.buildError(response, "Creating new Instance"));
+                    complete(self.buildError(response, "Creating new Instance"), data);
                 } else if (data instanceof Error) {
                     complete(data);
                 } else if (data['success'] === false) {
-                    complete(self.buildDapError(data, 'At DapClient newInstance'));
+                    complete(self.buildDapError(data, 'At DapClient newInstance'), data);
                 } else {
                     complete();
                 }

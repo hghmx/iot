@@ -186,7 +186,7 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
                                 "guesttenants": [],
                                 "description": "Simulate an M2M Bridge error observation",
                                 "producer": "simulator",
-                                "errorCode": 1,
+                                "errorCode": 1
                             });                        
     var  errorMsg;                       
     if(error.message){
@@ -216,13 +216,55 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
     logger.error( m2mError.errorMessage);
 };
 
-Plugins.prototype.onCCAsync = function ( observation, complete) {
+Plugins.prototype.getLinkedThingParent = function (linkedThing) {
     var self = this;
-    if(observation['@type'] === "/amtech/linkeddata/types/composite/observation/observationresourcecrud"){
+    for (var i = 0; i < self.plugins.values().length; i++) {
+        var plugIn = self.plugins.values()[i];
+        for (var j = 0; j < plugIn.instances.values().length; j++) {
+            var pluginInst = plugIn.instances.values()[j];
+            for (var property in pluginInst.config) {
+                var sp = pluginInst.config[property];
+                if (typeof sp === 'object' &&
+                    sp['@type'] &&
+                    sp['@type'] === "http://www.w3.org/ns/hydra/core#Collection" &&
+                    sp.members && sp.members.length > 0 &&
+                    sp.memberstype ===  linkedThing['@type']) {
+                    for (var k = 0; k < sp.members.length; k++) {
+                        var instance = sp.members[k];
+                        if (instance['@id'] === linkedThing['@id']) {
+                            return {parent: pluginInst.instance, config: instance};
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return null;
+};
+
+Plugins.prototype.onCCAsync = function (observation, complete) {
+    var self = this;
+    if (observation['@type'] === "/amtech/linkeddata/types/composite/observation/observationresourcecrud") {
         var pluginName = this.observs.getResourceName(observation.resourcetype);
-        this.onCrud(pluginName,observation, complete );
-    }else{
-        
+        var plugId = this.observs.getResourceName(observation.resourceuri);
+        if (self.plugins.get(pluginName) && self.plugins.get(pluginName).instances &&
+            self.plugins.get(pluginName).instances.get(plugId).instance) {
+            self.onCrud(pluginName, observation, complete);
+        } else {
+            var linkedInstance = self.getLinkedThingParent({'@type': observation.resourcetype,
+                '@id': observation.resourceuri});
+            if (linkedInstance) {
+                self.updateLinkedThing(linkedInstance, observation, complete);
+            } else {
+                var err = new Error(
+                    util.format("Crud operation has ben sent to an unknown plugin  %s"
+                        , pluginName));
+                if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                    self.sendPluginError(pluginName, err);
+                }
+            }
+        }
+    } else {
         if (!observation.targetthings) {
             var err = new Error("Command has been sent without a targetthings property");
             //send error
@@ -230,10 +272,54 @@ Plugins.prototype.onCCAsync = function ( observation, complete) {
                 self.sendPluginError("Uknown", err);
             }
             complete(err);
-        }else{
-            var tt  = JSON.parse(observation.targetthings);
-            self.onCommand( this.observs.getResourceName(tt[0].thingType), observation, complete);
+        } else {
+            var tt = JSON.parse(observation.targetthings);
+            self.onCommand(this.observs.getResourceName(tt[0].thingType), observation, complete);
+        }
+    }
+};
+
+Plugins.prototype.updateLinkedThing = function (linkedInstance, observation, complete) {
+    var self = this;
+    var pluginName = this.observs.getResourceName(linkedInstance.parent['@type']);
+    var id = this.observs.getResourceName(linkedInstance.parent['@id']);    
+    try{
+        var od = new Date(observation.occurrencetime);
+        if (linkedInstance.config[observation['propId']] !== observation['newvalue']) {
+            linkedInstance.config._lastmodified = od.getTime();
+            linkedInstance.config[observation['propId']] = observation['newvalue'];
+            var plugIn = self.plugins.get(pluginName).instances.get(id).instance;
+            var pluginInstance = self.plugins.get(pluginName).instances.get(id);
+            var context = {bc: self.bc, observationsCnfg: pluginInstance.observations,
+                thingInstance: pluginInstance.config, logger: logger};
+            async.series([plugIn.stop.bind(plugIn),
+                async.apply(plugIn.start.bind(plugIn), context)],
+                function (err) {
+                    if (err) {
+                        if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                            self.sendPluginError(id, err);
+                        }
+                        complete(err);
+                    } else {
+                        logger.debug(util.format("Updated plugIn %s property %s from %s to %s"),
+                            id, observation['propId'], linkedInstance.config[observation['propId']],
+                            observation['newvalue']);
+                        complete(null);
+                    }
+                });
+        } else {
+            logger.debug(util.format("Updated not called plugIn %s last modified at %s property has same value %s old %s new %s"),
+                id, od, observation['propId'], linkedInstance.config[observation['propId']],
+                observation['newvalue']);
+            complete(null);
+        }
+    }catch(e){
+        logger.error();
+        var err = new Error(util.format("Updating linked resource to plugin type %s id %s",pluginName, id));
+        if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+            self.sendPluginError(pluginName, err);
         }        
+        complete(e);
     }
 };
 
@@ -319,6 +405,11 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
                         complete(null);
                     }
                 });
+        }else{
+            logger.debug(util.format("Updated not called plugIn %s last modified at %s property has same value %s old %s new %s"),
+                id, od, observation['propId'], pluginInstance.config[observation['propId']],
+                observation['newvalue']);
+            complete(null);
         }
     }
 
