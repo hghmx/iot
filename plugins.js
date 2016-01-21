@@ -575,30 +575,37 @@ Plugins.prototype.restartPlugIn = function (pginInstance) {
         var instanceId = self.observs.getResourceName(pginInstance['@id']);
         var pluginInstance = self.plugins.get(pluginName).instances.get(instanceId).instance;
         var observationsCnfg = self.plugins.get(pluginName).instances.get(instanceId).observations;
-        var thingInstance = self.plugins.get(pluginName).instances.get(instanceId).config; 
+        var thingInstance = self.plugins.get(pluginName).instances.get(instanceId).config;
         
-        pluginInstance.stop(function(err){
-            if(err){
+        if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+            self.sendPluginError(pluginName, new Error(util.format("Restarting plugin %s id %s.", pluginName, instanceId)));
+        }
+        pluginInstance.stop(function (err) {
+            if (err) {
                 logger.error(util.format("At stopping for restarting plugin %s id %s error: %s", pluginName, instanceId, err.message));
-            }else{
-                var restartInterval = 
+                if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
+                    self.sendPluginError(id, err);
+                }
+            } else {
+                var restartInterval =
                     setInterval(function () {
-                        var context = {bc: self.bc, 
+                        var context = {bc: self.bc,
                             observationsCnfg: observationsCnfg,
-                            thingInstance: thingInstance, 
+                            thingInstance: thingInstance,
                             logger: logger};
-                        pluginInstance.start(context, function(err){
-                            if(!err){
+                        pluginInstance.start(context, function (err) {
+                            if (!err) {
                                 clearInterval(restartInterval);
                                 logger.debug(util.format("Restarted plugin %s id %s successfully", pluginName, instanceId));
-                            }else{
+                            } else {
                                 logger.error(util.format("At starting for restarting plugin %s id %s error: %s", pluginName, instanceId, err.message));
                             }
-                        });},  
-                        self.bc.networkFailed.reconnectWait);      
+                        });
+                    },
+                        self.bc.networkFailed.reconnectWait);
             }
 
-        }); 
+        });
     });
 };
 
