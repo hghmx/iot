@@ -455,7 +455,7 @@ function decode96EPC(tagInfo, complete) {
 
 LLRPReader.prototype.getdecodeEPCValues = function (antennaId) {
     var decodeEPCValues = this.llrpObservs.getAntennaValueOrDefault(antennaId, 'decodeEPCValues', this.decodeEPCValues);
-    this.logger.debug(util.format("Antenna id %d got decodeEPCValues %s", antennaId, decodeEPCValues));
+    //this.logger.debug(util.format("Antenna id %d got decodeEPCValues %s", antennaId, decodeEPCValues));
     return decodeEPCValues;
 };
 
@@ -503,7 +503,7 @@ LLRPReader.prototype.getTagInfo = function (ts, complete) {
         }
     } else {
         tagInfo = self.tagEvents.get(tagUrn);
-        self.logger.debug(util.format("SEEN AGAIN----------> URN: %s Name: %s", tagUrn, tagInfo.name));
+        //self.logger.debug(util.format("SEEN AGAIN----------> URN: %s Name: %s", tagUrn, tagInfo.name));
         self.updateTagInfo(tagUrn, ts, tagInfo);
         complete(null);
     }

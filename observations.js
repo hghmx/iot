@@ -286,12 +286,19 @@ Observations.prototype.queueObservation = function (observation) {
 Observations.prototype.setSecurity = function (resource) {
     if(this.bc.guestSecurity){ 
         if(this.bc.guestSecurity.guesttenants && this.bc.guestSecurity.guesttenants.length > 0){
-            resource.guesttenants = 
-                resource.guesttenants.concat(this.bc.guestSecurity.guesttenants);
+            if(resource.guesttenants){
+                resource.guesttenants = 
+                    resource.guesttenants.concat(this.bc.guestSecurity.guesttenants);
+            }else{
+                resource.guesttenants = this.bc.guestSecurity.guesttenants;
+            }
         }
         if(this.bc.guestSecurity.guestusers && this.bc.guestSecurity.guestusers.length > 0){
-            resource.guestusers=
-                resource.guestusers.concat(this.bc.guestSecurity.guestusers);
+            if(resource.guestusers){
+                resource.guestusers= Array.from(new Set(resource.guestusers.concat(this.bc.guestSecurity.guestusers)));
+            }else{
+                resource.guestusers= this.bc.guestSecurity.guestusers;
+            }
         }       
     } 
     return resource;

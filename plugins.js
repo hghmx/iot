@@ -49,6 +49,13 @@ Plugins.prototype.load = function (complete) {
     }
     self.loadedPlugs = [];
     this.plugins = self.observs.typesConfiguration;
+    if (!self.plugins.get('amtechM2mBridge') || 
+        !self.plugins.get('amtechM2mBridge').instances ||
+        !self.plugins.get('amtechM2mBridge').instances.get(self.bc.bridgeId) ||
+        !self.plugins.get('amtechM2mBridge').instances.get(self.bc.bridgeId).config ||
+        self.plugins.get('amtechM2mBridge').instances.get(self.bc.bridgeId).config._name !== self.bc.bridgeId) {
+            complete(new Error(util.format("amtechM2mBridge has not instance defined by autodiscoverung or server side with the name %s.", self.bc.bridgeId)));
+    }        
     async.each(this.plugins.values(), Plugins.prototype.pluged.bind(this),
         function (err) {
             if (err) {
@@ -88,7 +95,14 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
             if(!pluginConfig.instances.values()[0].observations.get('m2mBridgeError') ||
                 !pluginConfig.instances.values()[0].observations.get('m2mBridgeError').topicschema ||
                 pluginConfig.instances.values()[0].observations.get('m2mBridgeError').length === 0){
-                logger.error(util.format("amtechM2mBridge name %s has not defined m2mBridgeError topic at activity.", pluginConfig.instances.values()[0].config._name));
+                    var error = 
+                        new Error(util.format("amtechM2mBridge id %s has not topic defined for m2mError observations.", self.bc.bridgeId));
+                logger.error(error);
+                complete(error);
+            }else{
+                self['m2mErrorTopic'] = pluginConfig.instances.values()[0].observations.get('m2mBridgeError').topicschema;
+                self['m2mErrorTargetThings'] = pluginConfig.instances.values()[0].observations.get('m2mBridgeError').thingsconfig;
+                self['m2mErrorProducer'] = pluginConfig.instances.values()[0].observations.get('m2mBridgeError').producerschema;
             }           
             complete(null);
         }else{
@@ -179,14 +193,19 @@ Plugins.prototype.validateInterface = function (name, plugin) {
 
 Plugins.prototype.sendPluginError = function (pluginName, error) {
     var m2mError = clone(   {
-                                "errorMessage": "Error testing",
+                                "proximityarea": "",
+                                 "guestusers": [],
+                                "topic": "",
+                                "errorMessage": "",
                                 "targetthings": "[]",
                                 "location": "",
                                 "@type": "/amtech/linkeddata/types/composite/observation/m2mBridgeError",
+                                "creationDate": "2016-01-21T04:08:32.629Z",
                                 "guesttenants": [],
-                                "description": "Simulate an M2M Bridge error observation",
-                                "producer": "simulator",
-                                "errorCode": 1
+                                "description": "",
+                                "producer": "",
+                                "errorCode": 0,
+                                "occurrencetime": "2015-12-24T20:03:18.000Z"
                             });                        
     var  errorMsg;                       
     if(error.message){
@@ -196,11 +215,8 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
     }    
     m2mError.errorMessage = util.format( "Plugin name %s, error %s.", pluginName, errorMsg);
     
-     if(!this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError') ||
-        !this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').topicschema ||
-        this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').length === 0){
-                logger.error(util.format("amtechM2mBridge name %s has not defined m2mBridgeError topic at activity.", 
-                this.plugins.get("amtechM2mBridge").instances.values()[0].config._name));
+    if(!this.m2mErrorTopic){
+        logger.error(util.format("amtechM2mBridge id %s has not defined m2mBridgeError topic at activity.", this.bc.bridgeId));
     }else{
         if(error.code){
             m2mError.errorCode =error.code;
@@ -208,12 +224,12 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
             error.code = 0;
         }
         m2mError.occurrencetime = new Date().toISOString();
-        m2mError.topic = this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').topicschema;
-        m2mError.targetthings = this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').thingsconfig;
-        m2mError.producer = this.plugins.get("amtechM2mBridge").instances.values()[0].observations.get('m2mBridgeError').producerschema;
-        this.observs.send(m2mError);   
+        m2mError.topic = this.m2mErrorTopic;
+        m2mError.producer = this.m2mErrorProducer;
+        m2mError.targetthings = this.m2mErrorTargetThings;
+        this.observs.send(m2mError);           
     }   
-    logger.error( m2mError.errorMessage);
+    logger.error( m2mError.errorMessage);    
 };
 
 Plugins.prototype.getLinkedThingParent = function (linkedThing) {
@@ -248,6 +264,7 @@ Plugins.prototype.onCCAsync = function (observation, complete) {
         var pluginName = this.observs.getResourceName(observation.resourcetype);
         var plugId = this.observs.getResourceName(observation.resourceuri);
         if (self.plugins.get(pluginName) && self.plugins.get(pluginName).instances &&
+            self.plugins.get(pluginName).instances.get(plugId) &&
             self.plugins.get(pluginName).instances.get(plugId).instance) {
             self.onCrud(pluginName, observation, complete);
         } else {
@@ -257,8 +274,8 @@ Plugins.prototype.onCCAsync = function (observation, complete) {
                 self.updateLinkedThing(linkedInstance, observation, complete);
             } else {
                 var err = new Error(
-                    util.format("Crud operation has ben sent to an unknown plugin  %s"
-                        , pluginName));
+                    util.format("Crud operation has ben sent to an unknown plugin %s id %s"
+                        , pluginName, plugId));
                 if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
                     self.sendPluginError(pluginName, err);
                 }

@@ -68,7 +68,7 @@ LLRPSmoothing.prototype.setSmoothing = function (smoothing) {
 
 LLRPSmoothing.prototype.getAntennaSmoothing = function (antennaId) {
     var smoothing = this.llrpObservs.getAntennaValueOrDefault(antennaId, 'smoothing', this.isReaderSmoothing);
-    this.logger.debug(util.format("Antenna id %d got isReaderSmoothing %s", antennaId, smoothing));
+    //this.logger.debug(util.format("Antenna id %d got isReaderSmoothing %s", antennaId, smoothing));
     return smoothing;
 };
 
@@ -126,7 +126,7 @@ LLRPSmoothing.prototype.doSmoothing = function (tagEvents) {
 
 LLRPSmoothing.prototype.getReportAmountForSmoothing = function (antennaId) {
     var reportAmount = this.llrpObservs.getAntennaValueOrDefault(antennaId, 'reportAmountForSmoothing', this.reportAmountForSmoothing);
-    this.logger.debug(util.format("Antenna id %d got reportAmountForSmoothing %s", antennaId, reportAmount));
+    //this.logger.debug(util.format("Antenna id %d got reportAmountForSmoothing %s", antennaId, reportAmount));
     return reportAmount;
 };
 

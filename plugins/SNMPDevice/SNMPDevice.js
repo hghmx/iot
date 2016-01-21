@@ -75,11 +75,11 @@ SNMPDevice.prototype.start = function ( context, complete) {
                 operations.push(self.snmpset.bind(self));
             }
         }
+        //operations.push(self.setTrapListener.bind(self));
         async.parallel(operations,
                 function (err) {
                     self.sendGetResults();
                     self.setGetWithFrequency();
-                    self.setTrapListener();
                     complete(err);
                 });
     } catch (e) {
@@ -204,54 +204,65 @@ SNMPDevice.prototype.set = function (setOid, complete) {
 
 };
 
-SNMPDevice.prototype.setTrapListener = function () {
-    var self = this;
-    this.trapListener = snmp.createTrapListener();
-    this.trapListener.on('trap', function (msg) {
-        //send trap observation
-        var ms =snmp.message.serializer(msg);
-        if(ms.pdu.error_index !== 0){
-            //log error
-            //send error
-            var snmpError = self.newSnmpError( ms.pdu.error_index, ms.pdu.error_status);
-            
-        }else{
-            var trapOID, trapTimeTicks, variableBinds;
-            var index = 0;
-            var found = ms.pdu.varbinds.find(function(item){                
-                if(item.oid === SNMP_TRAP_OID){
-                    return item;
-                }
-                index++;
-            });
-            if(found){
-                trapOID = found.value;
-                ms.pdu.varbinds.splice(index, 1);
+SNMPDevice.prototype.setTrapListener = function (complete) {
+    try{
+        var self = this;
+        self.trapListener = snmp.createTrapListener();
+        var options = {family: 'udp4', port: TRAP_PORT, addr:  self.ip};
+        self.trapListener.bind(options, function(err){
+            if(!err){
+                self.trapOn = true;
+                self.trapListener.on('trap', function (msg) {
+                    //send trap observation
+                    var ms =snmp.message.serializer(msg);
+                    if(ms.pdu.error_index !== 0){
+                        //log error
+                        //send error
+                        var snmpError = self.newSnmpError( ms.pdu.error_index, ms.pdu.error_status);
+
+                    }else{
+                        var trapOID, trapTimeTicks, variableBinds;
+                        var index = 0;
+                        var found = ms.pdu.varbinds.find(function(item){                
+                            if(item.oid === SNMP_TRAP_OID){
+                                return item;
+                            }
+                            index++;
+                        });
+                        if(found){
+                            trapOID = found.value;
+                            ms.pdu.varbinds.splice(index, 1);
+                        }
+                        index = 0;
+                        found = ms.pdu.varbinds.find(function(item){
+                            if(item.oid === TRAP_TIMESTAMP){
+                                return item;
+                            }
+                            index++;
+                        });
+                        if(found){
+                            trapTimeTicks = found.value;
+                            ms.pdu.varbinds.splice(index, 1);
+                        }
+                        variableBinds = JSON.stringify(ms.pdu.varbinds);
+                        var newSnmpTrup = self.newSnmpTrup(trapOID, trapTimeTicks, variableBinds);
+                        self.sendObservation(self, newSnmpTrup);
+                    }
+                    if(self.logger){ 
+                        self.logger.debug(snmp.message.serializer(msg));
+                    }
+                });
+                complete(null);
+            }else{
+                var error = new Error(util.format("SNPDevice id: %s error setting snmp trap error %s", self['@id'], err.message));
+                complete(error);
             }
-            index = 0;
-            found = ms.pdu.varbinds.find(function(item){
-                if(item.oid === TRAP_TIMESTAMP){
-                    return item;
-                }
-                index++;
-            });
-            if(found){
-                trapTimeTicks = found.value;
-                ms.pdu.varbinds.splice(index, 1);
-            }
-            variableBinds = JSON.stringify(ms.pdu.varbinds);
-            var newSnmpTrup = self.newSnmpTrup(trapOID, trapTimeTicks, variableBinds);
-            self.sendObservation(self, newSnmpTrup);
-        }
-        if(self.logger){ self.logger.debug(snmp.message.serializer(msg))};
-    });
-    
-    var options = {family: 'udp4', port: TRAP_PORT, addr:  this.ip};
-    this.trapListener.bind(options, function(err){
-        if(!err){
-            self.trapOn = true;
-        }
-    });
+
+        });
+    }catch(err){
+        var error = new Error(util.format("SNPDevice id: %s error setting snmp trap error %s", self['@id'], err.message));
+        complete(error);
+    }
 };
 
 SNMPDevice.prototype.clearGetInterval = function () {

@@ -393,7 +393,7 @@ LLRPObservations.prototype.getAntennaValueOrDefault = function (antennaId, prope
 
 LLRPObservations.prototype.getUseSingleDecode96EPC = function (antennaId) {
     var value = this.getAntennaValueOrDefault(antennaId, 'useSingleDecode96EPC', this.useSingleDecode96EPC);
-    this.logger.debug(util.format("Antenna id %d got useSingleDecode96EPC %s", antennaId, value));
+    //this.logger.debug(util.format("Antenna id %d got useSingleDecode96EPC %s", antennaId, value));
     return value;
 };
 
