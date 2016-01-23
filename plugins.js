@@ -29,11 +29,7 @@ var util = require('util');
 var dapws = require('./dapWs').DapWs;
 var clone = require('clone');
 var dapReconnect = require('./reconnectDAP').reconnectDAP;
-//var urlDapCmds = '/amtech/push/things/commands?client=%s&thingtype=/amtech/linkeddata/types/composite/entity/%s';
-//var urlDapCrud = '/amtech/push/things/events?topic=%s&client=%s';
 var crudCommandWS = '/amtech/push/things/events?topic=%s&client=%s';
-
-var urlThingCrud = "thingcrud/";
 
 function Plugins( bc, dapClient, observs ){     
     this.bc = bc;
@@ -123,7 +119,7 @@ Plugins.prototype.pluged = function (pluginConfig, complete) {
         }
     }catch(e){
         if(e.code === 'MODULE_NOT_FOUND'){
-            logger.warn(util.format("Thing Type %s without a plugin installed, can be a lnked type or error in configuration", pluginConfig.name));
+            logger.warn(util.format("Thing Type %s without a plugin installed, can be a linked type or error in configuration", pluginConfig.name));
             complete(null);
         }else{
             complete(new Error(util.format("Error loding plugin type %s.js error %s.", pluginConfig.name, e.message)));
@@ -163,6 +159,7 @@ Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance,
         //inject jsonld properties
         newPlugin['@id'] =pluginInstance.config['@id'];
         newPlugin['@type']=pluginInstance.config['@type'];
+        newPlugin['_name']=pluginInstance.config._name;
         
         newPlugin.start(context, function (err) {
             if (err) {
@@ -171,6 +168,7 @@ Plugins.prototype.newInstance = function (plugClass, pluginName, pluginInstance,
                 pluginInstance['instance'] = newPlugin;
                 //self.plugins.get(pluginName).instances.set(instanceC['@id'], newPlugin);
                 self.loadedPlugs.push(util.format("New plugin type: %s id: %s", pluginName,  newPlugin['@id']));
+                self.sendPluginStarted(newPlugin['@type'], newPlugin['@id'] );
                 complete(null);
             }
         });
@@ -230,6 +228,65 @@ Plugins.prototype.sendPluginError = function (pluginName, error) {
         this.observs.send(m2mError);           
     }   
     logger.error( m2mError.errorMessage);    
+};
+
+Plugins.prototype.sendPluginStarted = function (pluginType, pluginId) {
+    var m2mStart = clone(   {
+                "topic": "",
+                "guestusers": [],
+                "targetthings": "[]",
+                "location": "",
+                "@type": "/amtech/linkeddata/types/composite/observation/m2mBridgeStartedThing",
+                "thingId": "",
+                "guesttenants": [],
+                "description": "",
+                "producer": "",
+                "occurrencetime": "2016-01-22T02:50:12.000Z",
+                "typeId": ""
+            });                        
+    if(!this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStartedThing')){
+        logger.warn(util.format("amtechM2mBridge id %s has not configuration for observation m2mBridgeStartedThing.", this.bc.bridgeId));
+    }else{
+        m2mStart.typeId = pluginId;
+        m2mStart.thingId = pluginType;        
+        m2mStart.occurrencetime = new Date().toISOString();
+        m2mStart.topic = this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStartedThing').topicschema;
+        m2mStart.producer = this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStartedThing').producerschema;
+        m2mStart.targetthings = this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStartedThing').thingsconfig;
+        this.observs.send(m2mStart);           
+    }       
+};
+
+Plugins.prototype.sendPluginStopped = function (pluginType, pluginId) {
+    var m2mStopped = clone( {
+                "topic": "",
+                "guestusers": [],
+                "targetthings": "[]",
+                "location": "",
+                "@type": "/amtech/linkeddata/types/composite/observation/m2mBridgeStoppedThing",
+                "thingId": "",
+                "creationDate": "2016-01-22T03:04:59.391Z",
+                "guesttenants": [],
+                "description": "",
+                "producer": "",
+                "detectiontime": "2016-01-22T02:57:22.000Z",
+                "occurrencetime": "2016-01-22T02:57:22.000Z",
+                "typeId": ""
+            });     
+    if(!this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStoppedThing')){
+        logger.warn(util.format("amtechM2mBridge id %s has not configuration for observation m2mBridgeStoppedThing.", this.bc.bridgeId));
+    }else{
+        m2mStopped.typeId = pluginId;
+        m2mStopped.thingId = pluginType;        
+        m2mStopped.occurrencetime = new Date().toISOString();
+        m2mStopped.topic = 
+            this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStoppedThing').topicschema;
+        m2mStopped.producer = 
+            this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStoppedThing').producerschema;
+        m2mStopped.targetthings = 
+            this.plugins.get('amtechM2mBridge').instances.get(this.bc.bridgeId).observations.get('m2mBridgeStoppedThing').thingsconfig;
+        this.observs.send(m2mStopped);           
+    }       
 };
 
 Plugins.prototype.getLinkedThingParent = function (linkedThing) {
@@ -520,8 +577,10 @@ Plugins.prototype.onCrud = function (pluginName, observation, complete) {
 };
 
 Plugins.prototype.stop = function (plugIn, complete) {
+    var self = this;
     if(plugIn){
         plugIn.stop(function (err) {
+            self.sendPluginStopped(plugIn['@type'], plugIn['@id'] );
             complete(err);
         });
     }else{
@@ -576,11 +635,14 @@ Plugins.prototype.restartPlugIn = function (pginInstance) {
         var pluginInstance = self.plugins.get(pluginName).instances.get(instanceId).instance;
         var observationsCnfg = self.plugins.get(pluginName).instances.get(instanceId).observations;
         var thingInstance = self.plugins.get(pluginName).instances.get(instanceId).config;
+        var pType = pginInstance['@type'];
+        var pId = pginInstance['@id'];
         
         if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
             self.sendPluginError(pluginName, new Error(util.format("Restarting plugin %s id %s.", pluginName, instanceId)));
         }
         pluginInstance.stop(function (err) {
+            self.sendPluginStopped(pType, pId );
             if (err) {
                 logger.error(util.format("At stopping for restarting plugin %s id %s error: %s", pluginName, instanceId, err.message));
                 if (self.bc.pluginLoad && self.bc.pluginLoad.sendM2mBridgeError) {
@@ -597,6 +659,7 @@ Plugins.prototype.restartPlugIn = function (pginInstance) {
                             if (!err) {
                                 clearInterval(restartInterval);
                                 logger.debug(util.format("Restarted plugin %s id %s successfully", pluginName, instanceId));
+                                self.sendPluginStarted(pType, pId );
                             } else {
                                 logger.error(util.format("At starting for restarting plugin %s id %s error: %s", pluginName, instanceId, err.message));
                             }
@@ -604,7 +667,6 @@ Plugins.prototype.restartPlugIn = function (pginInstance) {
                     },
                         self.bc.networkFailed.reconnectWait);
             }
-
         });
     });
 };

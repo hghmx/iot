@@ -156,7 +156,6 @@ MQTTBroker.prototype.newMQTTMessage = function (packet) {
         "mqttPayload": "",
         "producer": "",
         "detectiontime": "2016-01-05T19:46:18.000Z",
-        "@id": "/amtech/things/observations/mqttMessageForTesting",
         "occurrencetime": "2016-01-05T19:46:18.000Z"
     });
 

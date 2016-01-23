@@ -58,8 +58,7 @@ var epcObservations =  [
         "producer": "",
         "cAGEOrDODAAC": "",
         "tagEncoding": "",
-        "occurrencetime": "2015-11-25T20:20:25.000Z",
-        "@id": "/amtech/things/observations/decodeEPCSimulation"
+        "occurrencetime": "2015-11-25T20:20:25.000Z"
     },
     {   "topic": "",
         "proximityarea": "",
@@ -77,8 +76,7 @@ var epcObservations =  [
         "producer": "",
         "tagEncoding": "",
         "detectiontime": "2015-11-28T06:26:16.000Z",
-        "occurrencetime": "2015-11-28T06:26:16.000Z",
-        "@id": "/amtech/things/observations/dataEPCSimulation"
+        "occurrencetime": "2015-11-28T06:26:16.000Z"
     },
     {   "topic": "",
         "proximityarea": "",
@@ -97,8 +95,7 @@ var epcObservations =  [
         "itemReference": "",
         "producer": "",
         "tagEncoding": "",
-        "occurrencetime": "2015-11-24T22:27:38.000Z",
-        "@id": "/amtech/things/observations/stginEPCDevelopment"
+        "occurrencetime": "2015-11-24T22:27:38.000Z"
     },
     {   "topic": "",
         "proximityarea": "",
@@ -114,8 +111,7 @@ var epcObservations =  [
         "guesttenants": [],
         "producer": "",
         "tagEncoding": "",
-        "occurrencetime": "2015-11-27T17:26:29.000Z",
-        "@id": "/amtech/things/observations/rawEPCSimulator"
+        "occurrencetime": "2015-11-27T17:26:29.000Z"
     },
     {   "topic": "",
         "proximityarea": "",
@@ -130,8 +126,7 @@ var epcObservations =  [
         "guesttenants": [],
         "producer": "",
         "tagEncoding": "",
-        "occurrencetime": "2015-11-28T07:11:20.000Z",
-        "@id": "/amtech/things/observations/encoded96EPCSimulation"
+        "occurrencetime": "2015-11-28T07:11:20.000Z"
     },
     {   "topic": "",
         "proximityarea": "",
@@ -321,7 +316,8 @@ String.prototype.lowerFirstLetter = function() {
     return this.charAt(0).toLowerCase() + this.slice(1);
 };
 
-function LLRPObservations(location,
+function LLRPObservations(name,
+                           location,
                           observationsCnfg, 
                           decodeEPCValues, 
                           useSingleDecode96EPC,
@@ -330,6 +326,7 @@ function LLRPObservations(location,
                           proximityarea,
                           logger) {
     var self = this;
+    self._name = name;
     self.location = location;
     self.observationsCnfg = observationsCnfg;
     self.decodeEPCValues = decodeEPCValues;
@@ -470,15 +467,15 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
             }            
         }else if(!self.observationsCnfg.has(observationName)){
             //stop
-            self.logger.warn(util.format('Observation type %s has not production configuration',
-                    observationName ) );
+            self.logger.warn(util.format('LLRPReader id %s observation type %s has not production configuration',
+                    self._name, observationName ) );
         }        
     });
     
     if (self.observsGroups.count() > 0) {
         if (!self.groupReport && self.groupAntennas.length === 0) {
             observationGroups = observationGroups.concat(self.observsGroups.get('_all_'));
-            self.logger.debug(util.format('Grouping by %s', '_all_'));
+            self.logger.debug(util.format('LLRPReader id %s Grouping by %s', self._name, '_all_'));
         } else if (self.groupReport) {
             self.observsGroups.forEach(function (tagsGroup, key) {
                 self.buildGroup(tagsGroup, key, observationGroups);
@@ -492,7 +489,7 @@ LLRPObservations.prototype.getEPCObservations = function (tagsInfo) {
                     //observationGroups.push(tagsGroup[0]);
                 } else {
                     observationGroups = observationGroups.concat(tagsGroup);
-                    self.logger.debug(util.format('Adding to grouping by %s ', '_all_'));
+                    self.logger.debug(util.format('LLRPReader %s adding to grouping by %s ', self._name, '_all_'));
                 }
             });
         }
@@ -533,11 +530,11 @@ LLRPObservations.prototype.buildGroup = function (tagsGroup, key, observationGro
             gObsrv.location = self.location;
         }
         observationGroups.push(gObsrv);
-        self.logger.debug(util.format('Grouping by %s ', key));
+        self.logger.debug(util.format('LLRPReader id %s grouping by %s ', self._name, key));
     }else if(!self.observationsCnfg.has(observationName)){
         //stop
-        self.logger.error(util.format('Observation type %s has not production configuration',
-                observationName) );
+        self.logger.error(util.format('LLRPReader id %s observation type %s has not production configuration',
+                self._name, observationName) );
     }       
 };
 
@@ -604,11 +601,11 @@ LLRPObservations.prototype.getErrorObservations = function (error) {
             llrpError.location = self.location;
         }
         llrpError.occurrencetime = new Date().toISOString();
-        self.logger.debug(util.format("llrpError json:\n json%s", JSON.stringify(llrpError, undefined, 4)));
+        self.logger.debug(util.format("LLRPReader id %s llrpError json:\n json%s", self._name, JSON.stringify(llrpError, undefined, 4)));
         return llrpError;
     }else{
-        self.logger.error(util.format('Observation type %s has not production configuration',
-                observationName) );  
+        self.logger.error(util.format('LLRPReader id %s observation type %s has not production configuration',
+                self._name, observationName) );  
         return null;
     }    
 };

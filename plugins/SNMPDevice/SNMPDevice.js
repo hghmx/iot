@@ -165,7 +165,9 @@ SNMPDevice.prototype.get = function (getOid, complete) {
     };
     self.client.get(self.ipaddress, self.communityString, self.snmpVersion, getOid.oid, function (snmpmsg) {
         snmpmsg.pdu.varbinds.forEach(function (varbind) {
-            if(self.logger){ self.logger.debug(varbind.oid + ' = ' + varbind.data.value)};
+            if(self.logger){ 
+                self.logger.debug(util.format("SNMPDevice id %s varbind.oid = " , self._name, varbind.data.value));
+            };
             var getOid = finOidById(varbind.oid);
             if (getOid) {
                 self.getResults.push({name: getOid.name, oid: getOid.oid, value: varbind.data.value, type: varbind.data.typename});
@@ -194,7 +196,9 @@ SNMPDevice.prototype.set = function (setOid, complete) {
     var self = this;
     self.client.set(self.ipaddress, self.communityString, self.snmpVersion, setOid.oid, snmp.data.createData({type: setOid.type,
         value: setOid.value}), function (snmpmsg) {
-        if(self.logger){ self.logger.debug(snmp.pdu.strerror(snmpmsg.pdu.error_status))};
+        if(self.logger){ 
+            self.logger.debug(util.format("SNMPDevice id %s set error %s", self._name, snmp.pdu.strerror(snmpmsg.pdu.error_status)));
+        };
         if (snmpmsg.pdu.error_status !== 0) {
             //send snmp error message
             var snmpError = self.newSnmpError( snmpmsg.pdu.error_status, snmp.pdu.strerror(snmpmsg.pdu.error_status));
@@ -249,7 +253,7 @@ SNMPDevice.prototype.setTrapListener = function (complete) {
                         self.sendObservation(self, newSnmpTrup);
                     }
                     if(self.logger){ 
-                        self.logger.debug(snmp.message.serializer(msg));
+                        self.logger.debug(util.format("SNMPDevice id %s trap message %s", self._name, snmp.message.serializer(msg)));
                     }
                 });
                 complete(null);
@@ -334,7 +338,6 @@ SNMPDevice.prototype.newSnmpRead = function (getOIDs) {
             "@type": "/amtech/linkeddata/types/composite/observation/snmpRead",
             "producer": "",
             "detectiontime": "2015-10-24T15:30:07.000Z",
-            "@id": "/amtech/things/observations/snmpReadDemo",
             "occurrencetime": "2015-10-24T15:30:07.000Z",
             "getOIDs": ""
         }); 
@@ -364,7 +367,6 @@ SNMPDevice.prototype.newSnmpTrup = function ( trapOID, trapTimeTicks, variableBi
         "producer": "",
         "detectiontime": "2015-10-29T17:26:46.000Z",
         "occurrencetime": "2015-10-29T17:26:46.000Z",
-        "@id": "/amtech/things/observations/snmpTrapDemo",
         "trapOID": "",
         "variableBinds": ""
     });
@@ -396,7 +398,6 @@ SNMPDevice.prototype.newSnmpError = function (code, message) {
                 "description": "",
                 "producer": "",
                 "detectiontime": "2015-10-29T19:03:44.000Z",
-                "@id": "/amtech/things/observations/snmpErrorDemo",
                 "occurrencetime": "2015-10-29T19:03:44.000Z"
             });
     if (this.location) {

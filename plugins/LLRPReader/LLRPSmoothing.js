@@ -23,9 +23,10 @@ var smoothNew = 'new';
 var smoothLost = 'lost';
 var util = require('util');
 
-function LLRPSmoothing( isReaderSmoothing, antennas,
+function LLRPSmoothing( name, isReaderSmoothing, antennas,
                          llrpObservs,reportAmountForSmoothing,
                           logger  ) {
+    this._name = name;
     this.antennas = antennas;
     this.isReaderSmoothing = isReaderSmoothing;
     this.smoothig = this.setSmoothing(isReaderSmoothing);    
@@ -94,7 +95,7 @@ LLRPSmoothing.prototype.doSmoothing = function (tagEvents) {
                 tagEvents.remove(toDel.tagUrn);
             });
         }
-        self.logTags("Non Smoothing", smoothTags);
+        self.logTags("No Smoothing", smoothTags);
     }    
     //Send new event
     self.newTags.forEach(function (tagUrn) {
@@ -145,12 +146,12 @@ LLRPSmoothing.prototype.applySmooth = function (tagEvents) {
 LLRPSmoothing.prototype.logTags = function (comment, tags, smoothStatus) {
     var self = this;
     if(self.logger && self.logger.transports.console.level === "debug"){
-        self.logger.debug(util.format("---------------------%s--------------", comment));
+        self.logger.debug(util.format("LLRPReader id %s --------%s--------------", self._name, comment));
         tags.forEach(function (ts) {
             if(!smoothStatus){
-                self.logger.debug(util.format("Tag data %s \n json%s", ts.tag, JSON.stringify(ts, undefined, 4)));
+                self.logger.debug(util.format("LLRPReader id %s Tag data %s \n json%s", self._name, ts.tag, JSON.stringify(ts, undefined, 4)));
             }else if(ts.smoothingResult === smoothStatus){
-                 self.logger.debug(util.format("Tag data %s \n json%s", ts.tag, JSON.stringify(ts, undefined, 4)));
+                 self.logger.debug(util.format("LLRPReader id %s Tag data %s \n json%s", self._name, ts.tag, JSON.stringify(ts, undefined, 4)));
             }
         });        
     }

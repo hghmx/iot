@@ -103,7 +103,7 @@ Observations.prototype.dispatch = function (complete) {
           complete(err);
       }else{
         dapReconnect.init(self.bc, self);
-        self.qSendJobs = async.queue(Observations.prototype.sendJob.bind(self), 3);
+        self.qSendJobs = async.queue(Observations.prototype.sendJob.bind(self), 1);
         self.qObservations = db;  
         self.qObservations.on('open', function(){
             self.sendJobsPending( function(result){
@@ -224,7 +224,7 @@ Observations.prototype.sendJob = function (value, callback) {
                         if(hasCallback) callback(null);
                     } else{                                               
                         var error = new Error(util.format("Error sending observation type %s reconnectiing", value['@type']));                        
-                        pauseDispatch(error.message);
+                        self.pauseDispatch(error.message);
                         if(hasCallback) callback(error);
                     }          
                 } else {
@@ -251,10 +251,10 @@ Observations.prototype.send = function (observation) {
 //            self.queueObservation(observation);  
 //            return;
 //        }
-        logger.debug(util.format("QUEUE->Worker observation from SEND type: %s", observation["@type"]));
+        logger.debug(util.format("Producer %s  queue a worker to send observation type: %s", observation["producer"], observation["@type"]));
         self.qSendJobs.push(observation, function(err){
             if(err){
-                logger.err('Sending observation type: ' + observation['@type']);
+                logger.error('Sending observation type: ' + observation['@type']);
             }else{
                 if(logger && logger.transports.console.level === "debug"){
                     try{
@@ -264,11 +264,10 @@ Observations.prototype.send = function (observation) {
                     }
                     logger.debug(util.format("[ %d ] TOTAL MESSAGES sent", self.osCounter));
                 }
-                logger.info(util.format("Sent observation producer: %s type: %s", observation["producer"],observation["@type"]));
+                logger.info(util.format("Sent observation from producer: %s type: %s to topic %s", observation["producer"],observation["@type"], observation["topic"] ));
             }          
         });
     }else{
-        logger.debug(util.format("QUEUE observation from SEND type: %s", observation["@type"]));
         self.queueObservation(observation);       
     }
 };
@@ -278,7 +277,7 @@ Observations.prototype.queueObservation = function (observation) {
                          if (err) {
                              logger.error(err);
                          } else {
-                             logger.debug('enqueued observation type: ' + observation['@type']);
+                             logger.debug(util.format("Producer %s queue in db to send observation type: %s", observation["producer"], observation["@type"]));
                          }
                      });           
 };
