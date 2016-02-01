@@ -339,7 +339,8 @@ LLRPReader.prototype.startEventCycle = function (data) {
                     self.readerCapabilities = java.newInstanceSync('org.llrp.ltk.generated.messages.GET_READER_CAPABILITIES_RESPONSE', byteArray);
                     var rc_antennas = self.readerCapabilities.getGeneralDeviceCapabilitiesSync().getMaxNumberOfAntennaSupportedSync().intValueSync();
                     var rc_success = self.llrpSuccess(self.readerCapabilities);
-                    if( rc_success && self.antennas && rc_antennas === self.antennas.count() && self._complete){                                
+                    //if( rc_success && self.antennas && rc_antennas === self.antennas.count() && self._complete){
+                    if( rc_success && self.antennas && self._complete){
                         self.isConnected = true;
                         if (self.logger) {
                             self.logger.info(util.format('LLRPReader id %s connected with %d anttenas configured and %d physically connected',
@@ -352,7 +353,9 @@ LLRPReader.prototype.startEventCycle = function (data) {
                     }else if(self._complete) {
                         self._complete( new Error(util.format("LLRPReader id %s WRONG configuration, %d anttenas configured and %d physically connected", 
                         self._name,  self.antennas ? self.antennas.count() : 0 ,rc_antennas)));
-                    }                   
+                    }     
+                    
+                    
                     //self.readerCapabilities.getGeneralDeviceCapabilitiesSync().getHasUTCClockCapabilitySync().intValueSync();                    
                     break;
                     //3
